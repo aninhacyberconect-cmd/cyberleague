@@ -1,0 +1,29 @@
+CYBER LEAGUE V12 — CONTROLE COMPLETO
+
+O que foi integrado:
+- Login da gestora com acesso completo.
+- Login da equipe com acesso SOMENTE à TV.
+- TV mostra o valor vendido por todas as vendedoras, meta individual, quantidade de vendas e comissão prevista.
+- Meta geral da loja editável.
+- Meta individual de cada vendedora editável.
+- Comissão padrão editável: percentual sem meta, percentual com meta e valor fixo por venda.
+- Comissão individual pode substituir a regra padrão da loja.
+- Pontos das ações continuam editáveis em Regras da Liga.
+- Pontos por faixa de valor da venda agora também são editáveis.
+- Todas as configurações são salvas no Firebase e atualizam as telas automaticamente.
+- Histórico de lançamentos passa a registrar venda, pontos e valores para permitir exclusão e recálculo.
+
+SENHAS INICIAIS:
+- Gestora: 2026
+- Equipe / TV: 1234
+
+IMPORTANTE: entre em Config e altere as duas senhas antes de compartilhar o link.
+
+COMO PUBLICAR:
+1. Envie este ZIP para o Netlify.
+2. Entre como Gestora.
+3. Abra Config e ajuste metas, percentuais, valores fixos, senhas e regras de cada vendedora.
+4. Use “Copiar link das vendedoras” para enviar o acesso somente à TV.
+
+OBSERVAÇÃO DE SEGURANÇA:
+O bloqueio de telas e ações está pronto no aplicativo. Para segurança forte contra alguém tentando acessar diretamente o banco de dados, as regras do Firebase/Firestore também devem ser configuradas no painel do Firebase.
