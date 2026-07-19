@@ -478,7 +478,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <button class="btn-main full" onclick="salvarConfig()">Salvar configurações e acessos</button>
           </div>
         </div>
-        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. As alterações passam a valer nos próximos lançamentos.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
+        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. Ao salvar, você poderá aplicar as novas faixas também às vendas já lançadas e recalcular tudo.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
         <div class="panel"><h2>🔗 Link das vendedoras</h2><button class="btn-main" onclick="copySellerLink()">Copiar link das vendedoras</button><p class="small" style="margin-top:8px">Esse link abre direto no login da TV. A equipe verá somente a tela da TV, sem acesso ao restante do aplicativo.</p></div>
         <div class="panel"><h2>🧹 Zerar mês</h2>
           <p class="small">Use apenas no início de um novo mês, depois de salvar os resultados.</p><br>
@@ -1093,8 +1093,38 @@ window.resetPointRules = async function(){
 }
 
 window.saveSaleRules=async function(){
-  state.saleRules=(state.saleRules||[]).map((r,i)=>({min:Number(document.getElementById("srMin_"+i).value)||0,max:document.getElementById("srMax_"+i).value===""?999999999:Number(document.getElementById("srMax_"+i).value),points:Number(document.getElementById("srPts_"+i).value)||0})).sort((a,b)=>a.min-b.min);
-  await saveState("💰 Pontos por faixa de venda atualizados."); toast("Pontos das vendas salvos!");
+  if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
+  const novasRegras=(state.saleRules||[]).map((r,i)=>({
+    min:Number(document.getElementById("srMin_"+i).value)||0,
+    max:document.getElementById("srMax_"+i).value===""?999999999:Number(document.getElementById("srMax_"+i).value),
+    points:Number(document.getElementById("srPts_"+i).value)||0
+  })).sort((a,b)=>a.min-b.min);
+  state.saleRules=novasRegras;
+
+  const vendasAntigas=(state.launchHistory||[]).filter(h=>!h.deleted && h.tipo==="venda");
+  let atualizouAntigas=false;
+  if(vendasAntigas.length && confirm(`Aplicar as novas faixas também às ${vendasAntigas.length} vendas já lançadas e recalcular os pontos?`)){
+    for(const h of vendasAntigas){
+      const u=h.undo||{};
+      const valor=Number(u.vendas)||0;
+      const acessorios=Number(u.acessorios)||0;
+      let novosPontos=salePoints(valor);
+      if(valor>=650) novosPontos+=10;
+      if(acessorios>=5) novosPontos+=10;
+      else if(acessorios>=3) novosPontos+=5;
+      h.pts=novosPontos;
+      u.pts=novosPontos;
+      h.undo=u;
+      h.saleBasePoints=salePoints(valor);
+      h.saleValue=valor;
+      h.saleAccessories=acessorios;
+    }
+    await recalcularPontuacaoSemConfirmar();
+    atualizouAntigas=true;
+  }
+  await saveState(atualizouAntigas?"💰 Faixas de venda atualizadas e vendas antigas recalculadas.":"💰 Pontos por faixa de venda atualizados.");
+  renderAll();
+  toast(atualizouAntigas?"Faixas salvas e vendas antigas recalculadas!":"Pontos das vendas salvos!");
 }
 window.salvarConfig = async function() {
   state.config.meta=Number(document.getElementById("cfgMeta").value)||200000;
