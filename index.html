@@ -970,7 +970,7 @@ window.lancar = async function() {
 
   v.pts=Math.max(0,(Number(v.pts)||0)+pts);
   undo.pts=pts;
-  state.launchHistory=[{id:"h"+Date.now()+Math.random().toString(16).slice(2),sellerId,sellerNome:v.nome,tipo,icon,texto,pts,undo,createdMs:Date.now(),createdLabel:nowBR(),deleted:false},...(state.launchHistory||[])];
+  state.launchHistory=[{id:"h"+Date.now()+Math.random().toString(16).slice(2),sellerId,sellerNome:v.nome,tipo,ruleId:(tipo!=="venda"?tipo:null),ruleQty:(tipo!=="venda"?(rule?.effect==="falta"?1:quantidadeInformada):1),unitPoints:(tipo!=="venda"?Number(rule?.points)||0:null),icon,texto,pts,undo,createdMs:Date.now(),createdLabel:nowBR(),deleted:false},...(state.launchHistory||[])];
   await saveState(`${icon} ${texto}`);
   if(typeof registerAction==="function") await registerAction(icon,texto,undo);
   document.getElementById("valor").value="";
@@ -1059,19 +1059,19 @@ window.addRule = async function(){
 }
 window.saveRule = async function(id){
   if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
-  normalizeRules();
-  const r=state.pointRules.find(x=>x.id===id);
-  if(!r) return;
+  normalizeRules(); const r=state.pointRules.find(x=>x.id===id); if(!r) return;
+  const oldPoints=Number(r.points)||0;
   r.label=document.getElementById("rule_label_"+id).value.trim() || r.label;
   r.category=document.getElementById("rule_category_"+id).value.trim() || "Extra";
   r.points=Number(document.getElementById("rule_points_"+id).value)||0;
   r.effect=document.getElementById("rule_effect_"+id).value || "points";
-  r.active=document.getElementById("rule_active_"+id).checked;
-  r.show=document.getElementById("rule_show_"+id).checked;
-  await saveState("⚙️ Regra atualizada: "+r.label);
-  updateRulesInGestor();
-  renderRules();
-  toast("Regra salva e atualizada no Gestor!");
+  r.active=document.getElementById("rule_active_"+id).checked; r.show=document.getElementById("rule_show_"+id).checked;
+  const matches=(state.launchHistory||[]).filter(h=>!h.deleted && h.tipo===id);
+  if(matches.length && oldPoints!==r.points && confirm(`Alterar também os ${matches.length} lançamentos antigos desta regra e recalcular os pontos?`)){
+    matches.forEach(h=>{ const u=h.undo||{}; let q=Number(h.ruleQty)||Number(u.counterQty)||Number(u.os)||Number(u.orcamentos)||Number(u.leads)||Number(u.recuperacoes)||Number(u.marketing)||Number(u.checklist)||1; if(!h.ruleQty && oldPoints!==0 && Number(h.pts)) q=Math.max(1,Math.round(Number(h.pts)/oldPoints)); h.ruleId=id; h.ruleQty=q; h.unitPoints=r.points; h.pts=r.points*q; u.pts=h.pts; h.undo=u; });
+    await recalcularPontuacaoSemConfirmar();
+  }
+  await saveState("⚙️ Regra atualizada: "+r.label); updateRulesInGestor(); renderRules(); renderAll(); toast("Regra salva e lançamentos recalculados!");
 }
 window.deleteRule = async function(id){
   if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
@@ -1193,6 +1193,10 @@ window.ajustarFaturamentoSelecionado = async function(){
   toast("Faturamento corrigido e registrado no histórico!");
 }
 
+async function recalcularPontuacaoSemConfirmar(){
+  const base={pts:0,vendas:0,os:0,orcamentos:0,leads:0,marketing:0,recuperacoes:0,checklist:0,ticketSum:0,ticketCount:0,saleCount:0,assistFat:0,strategicBonus:0,strategicSales:0,falta:false}; state.sellers=state.sellers.map(v=>({...v,...base}));
+  const active=[...(state.launchHistory||[])].filter(h=>!h.deleted).sort((a,b)=>(a.createdMs||0)-(b.createdMs||0)); for(const h of active){const u=h.undo||{},v=state.sellers.find(s=>s.id===u.sellerId); if(!v)continue; v.pts=Math.max(0,(Number(v.pts)||0)+(Number(u.pts)||0)); ['vendas','ticketSum','ticketCount','saleCount','os','assistFat','orcamentos','marketing','checklist','recuperacoes','leads','strategicBonus','strategicSales'].forEach(k=>{if(u[k])v[k]=(Number(v[k])||0)+Number(u[k]);}); if(u.counterKey)v[u.counterKey]=(Number(v[u.counterKey])||0)+(Number(u.counterQty)||1); if(u.faltaSet)v.falta=true;}
+}
 window.recalcularPontuacao = async function(){
   if(!confirm("Recalcular usando o histórico ativo? Isso zera as métricas do mês e refaz pelos lançamentos.")) return;
   const base={ pts:0, vendas:0, os:0, orcamentos:0, leads:0, marketing:0, recuperacoes:0, checklist:0, ticketSum:0, ticketCount:0, saleCount:0, assistFat:0, strategicBonus:0, strategicSales:0, falta:false };
