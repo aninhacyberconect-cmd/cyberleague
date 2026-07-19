@@ -28,7 +28,7 @@ header{background:#050505;color:#fff;border-bottom:4px solid var(--orange);paddi
 .nav button.on,.nav button:hover{background:var(--orange);color:#fff}
 main{max-width:1360px;margin:18px auto;padding:0 14px}
 .page{display:none}.page.on{display:block}
-.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
 .kpi{background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:0 8px 26px rgba(0,0,0,.04)}
 .kpi small{display:block;color:#777;text-transform:uppercase;font-weight:900;font-size:10.5px}
 .kpi b{display:block;font-family:Rajdhani,sans-serif;font-size:31px;margin-top:6px;line-height:1}
@@ -90,7 +90,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
 .tvRankLeft{display:flex;align-items:center;gap:10px}.tvRankPos{width:28px;height:28px;border-radius:9px;background:#182238;display:flex;align-items:center;justify-content:center;color:#ffd166;font-weight:900}
 .flash{margin-top:16px;background:#111827;border:1px solid #26374f;border-radius:18px;padding:15px;color:#fff;display:flex;gap:12px;align-items:center;font-weight:800}
 .flashIcon{font-size:28px}.footerbar{margin-top:16px;background:#130c02;border:1px solid #6b430b;border-radius:18px;padding:16px;text-align:center;color:#ffd166;font-size:29px;font-family:Rajdhani;font-weight:900}
-.tvMiniGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.tvMiniGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
 .tvMini{background:rgba(13,20,32,.94);border:1px solid #243246;border-radius:18px;padding:15px}
 .tvMini small{color:#9aa4b5;font-size:11px;font-weight:900;text-transform:uppercase}
 .tvMini b{display:block;font-family:Rajdhani;font-size:29px;margin-top:5px}
@@ -144,7 +144,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
       <button id="navAssistencia" onclick="showPage('assistencia')">Assistência</button>
       <button id="navMarketing" onclick="showPage('marketing')">Marketing</button>
       <button id="navEstrategicos" onclick="showPage('estrategicos')">Produto Estratégico</button>
-      <button id="navBonus" onclick="showPage('bonus')">Bônus</button>
+      
       <button id="navHistorico" onclick="showPage('historico')">Histórico</button>
       <button id="navPontuacao" onclick="showPage('pontuacao')">Regras da Liga</button>
       <button id="navConfig" onclick="showPage('config')">Config</button><button class="logoutBtn" onclick="logoutApp()">Sair</button>
@@ -160,7 +160,6 @@ body.tvMode main{max-width:none;margin:0;padding:0}
       <div class="kpi blue"><small>Ticket médio</small><b id="kTicket">R$ 0</b></div>
       <div class="kpi purple"><small>Assistência</small><b id="kOS">0 OS</b></div>
       <div class="kpi"><small>Marketing</small><b id="kMkt">0</b></div>
-      <div class="kpi green"><small>Comissão prevista</small><b id="kBonus">R$ 0</b></div>
     </div>
     <div class="grid">
       <div class="panel"><h2>🏆 Ranking em tempo real</h2><div id="ranking"></div></div>
@@ -224,15 +223,13 @@ body.tvMode main{max-width:none;margin:0;padding:0}
         <div class="tvMini"><small>Ticket médio</small><b id="tvMiniTicket">R$ 0</b></div>
         <div class="tvMini"><small>Assistência</small><b id="tvMiniOS">0 OS</b></div>
         <div class="tvMini"><small>Marketing</small><b id="tvMiniMkt">0 ações</b></div>
-        <div class="tvMini"><small>Comissões previstas</small><b id="tvMiniBonus">R$ 0</b></div>
       </div>
-      <div class="footerbar" id="tvBonus">Potencial máximo por vendedora: até R$ 2.300</div>
     </div>
   </section>
 
   <section id="sellers" class="page">
     <div id="viewerMsg" class="alert" style="display:none;margin-bottom:14px">Modo visualização: as vendedoras podem ver, mas não conseguem lançar nem editar nada.</div>
-    <div class="panel"><h2>📱 Painel das vendedoras</h2><p class="small">Cada vendedora consegue acompanhar bônus previsto, vendas, ticket, assistência, marketing e presença.</p></div>
+    <div class="panel"><h2>📱 Painel das vendedoras</h2><p class="small">Cada vendedora acompanha vendas, pontos e a comissão prevista informada manualmente pela gestora.</p></div>
     <div class="cards" id="sellerCards"></div>
   </section>
 
@@ -305,71 +302,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
       </div>
     </div>
   </section>
-
-
-  <section id="bonus" class="page">
-    <div class="panel"><h2>💰 Bônus ao vivo e fechamento</h2>
-      <table class="table"><thead><tr><th>Vendedora</th><th>Individual</th><th>Presença</th><th>Meta loja</th><th>Ticket loja</th><th>Média semanal</th><th>Assistência</th><th>Produto Estratégico</th><th>Total</th></tr></thead><tbody id="bonusTable"></tbody></table>
-
-      <div class="alert" style="margin-top:14px">
-        Importante: o valor da venda não vira dinheiro direto para a vendedora. A venda soma pontos. O bônus em dinheiro só libera quando ela atinge as faixas da semana: 120 pts = R$150, 170 pts = R$200, 220 pts = R$250. Produto Estratégico continua somando bônus separado.
-      </div>
-    </div>
-    <div class="grid2">
-      <div class="panel"><h2>📌 Regras principais</h2>
-        <table class="table"><tbody>
-          <tr><td>Individual semanal</td><td>Até R$ 250/semana = R$ 1.000/mês</td></tr>
-          <tr><td>Sem falta no mês</td><td>+ R$ 100</td></tr>
-          <tr><td>Loja bate R$ 200.000</td><td>+ R$ 400</td></tr>
-          <tr><td>Ticket médio da loja R$ 650+</td><td>+ R$ 100 no fechamento, coletivo</td></tr>
-          <tr><td>Média semanal acima de R$ 4.000/dia</td><td>+ R$ 100 por semana</td></tr>
-          <tr><td>Assistência coletiva batida</td><td>+ R$ 300</td></tr>
-          <tr><td>Produto Estratégico</td><td>Valor definido por produto, sem limite no bônus principal</td></tr>
-        </tbody></table>
-      </div>
-      <div class="panel"><h2>🧠 Regra de segurança</h2>
-        <div class="alert">O bônus coletivo deve ser liberado somente se o faturamento, ticket, assistência e lucro mínimo estiverem saudáveis. A integração futura com Bling vai puxar vendas e ajudar a calcular isso automaticamente.</div>
-      </div>
-    </div>
-
-    <div class="panel"><h2>⭐ Pontuação por ação</h2>
-      <table class="table">
-        <thead><tr><th>Categoria</th><th>Ação</th><th>Pontos</th></tr></thead>
-        <tbody>
-          <tr><td>Venda</td><td>Venda até R$ 500</td><td>5 pts</td></tr>
-          <tr><td>Venda</td><td>Venda R$ 500 a R$ 999</td><td>8 pts</td></tr>
-          <tr><td>Venda</td><td>Venda R$ 1.000 a R$ 2.499</td><td>12 pts</td></tr>
-          <tr><td>Venda</td><td>Venda acima de R$ 2.500</td><td>18 pts</td></tr>
-          <tr><td>Venda</td><td>Venda acima de R$ 5.000</td><td>25 pts</td></tr>
-          <tr><td>Venda</td><td>3 acessórios ou mais</td><td>+5 pts</td></tr>
-          <tr><td>Venda</td><td>5 acessórios ou mais</td><td>+10 pts</td></tr>
-          <tr><td>Assistência</td><td>Serviço/OS fechado</td><td>15 pts</td></tr>
-          <tr><td>Assistência</td><td>Orçamento de assistência</td><td>5 pts</td></tr>
-          <tr><td>Assistência</td><td>Recuperação de orçamento</td><td>10 pts</td></tr>
-          <tr><td>Assistência</td><td>Novo lead/indicação</td><td>12 pts</td></tr>
-          <tr><td>Marketing</td><td>Story</td><td>2 pts</td></tr>
-          <tr><td>Marketing</td><td>Reel</td><td>8 pts</td></tr>
-          <tr><td>Marketing</td><td>TikTok</td><td>8 pts</td></tr>
-          <tr><td>Marketing</td><td>Live</td><td>20 pts</td></tr>
-          <tr><td>Marketing</td><td>Marketplace</td><td>3 pts</td></tr>
-          <tr><td>Marketing</td><td>Status WhatsApp</td><td>2 pts</td></tr>
-          <tr><td>Organização</td><td>Checklist entrada</td><td>5 pts</td></tr>
-          <tr><td>Organização</td><td>Checklist saída</td><td>5 pts</td></tr>
-          <tr><td>Organização</td><td>Vitrine</td><td>5 pts</td></tr>
-          <tr><td>Organização</td><td>Balcão de atendimento</td><td>5 pts</td></tr>
-          <tr><td>Organização</td><td>Produtos organizados</td><td>5 pts</td></tr>
-          <tr><td>Produto Estratégico</td><td>Venda cadastrada na aba Produto Estratégico</td><td>Definido por produto</td></tr>
-          <tr><td>Penalidade</td><td>Falta</td><td>-30 pts e perde presença</td></tr>
-          <tr><td>Penalidade</td><td>Atraso</td><td>-10 pts</td></tr>
-          <tr><td>Penalidade</td><td>Erro de processo</td><td>-5 pts</td></tr>
-          <tr><td>Penalidade</td><td>OS incompleta / cadastro errado</td><td>-5 pts</td></tr>
-          <tr><td>Penalidade</td><td>Atendimento fora do padrão</td><td>-5 pts</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section id="bling" class="page">
+<section id="bling" class="page">
     <div class="panel"><h2>🔗 Integração com Bling desativada</h2>
       <p class="small">Esta área já fica preparada para a fase 2. Por enquanto, o sistema funciona manualmente. Depois, as vendas do Bling poderão alimentar automaticamente faturamento, ticket médio, vendedora, produtos e serviços.</p>
       <br>
@@ -394,6 +327,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
         <select id="histTipo" onchange="renderHistory()"><option value="">Todos os tipos</option><option value="penalidade">Penalidades</option><option value="positivo">Pontuações positivas</option></select>
         <input id="histBusca" type="text" placeholder="Buscar descrição" oninput="renderHistory()">
         <button class="btn-dark" onclick="recalcularPontuacao()">Recalcular pontuação</button>
+        <button class="btn-danger" onclick="zerarVendedoraSelecionada()">Zerar vendedora selecionada</button>
       </div>
       <table class="table"><thead><tr><th>Data</th><th>Vendedora</th><th>Tipo</th><th>Descrição</th><th>Pontos</th><th>Ação</th></tr></thead><tbody id="histTable"></tbody></table>
     </div>
@@ -465,8 +399,6 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <input id="cfgMarketing" type="number" placeholder="Meta marketing">
             <input id="cfgBonus" type="number" placeholder="Potencial máximo por vendedora">
             <input id="cfgLucro" type="number" placeholder="Lucro mínimo interno">
-            <input id="cfgComissaoAbaixo" type="number" step="0.01" placeholder="Comissão % sem bater meta">
-            <input id="cfgComissaoAcima" type="number" step="0.01" placeholder="Comissão % batendo meta">
             <input id="cfgValorVenda" type="number" step="0.01" placeholder="Valor fixo por venda (opcional)">
             <input id="cfgAdminPin" type="text" inputmode="numeric" placeholder="Senha da gestora">
             <input id="cfgTvPin" type="text" inputmode="numeric" placeholder="Senha somente TV">
@@ -607,7 +539,7 @@ function ticketLoja() {
 }
 function sellerGoal(v){ return Number(v.individualGoal)||Math.round((Number(state.config.meta)||0)/Math.max(1,state.sellers.length)); }
 function commissionRate(v){ const hit=(Number(v.vendas)||0)>=sellerGoal(v); return Number(hit ? (v.commissionAbove ?? state.config.commissionAbove) : (v.commissionBelow ?? state.config.commissionBelow))||0; }
-function commission(v){ const fixed=Number(v.fixedPerSale ?? state.config.fixedPerSale)||0; return ((Number(v.vendas)||0)*commissionRate(v)/100)+((Number(v.saleCount)||0)*fixed); }
+function commission(v){ return Number(v.manualCommission)||0; }
 function totalCommission(){ return state.sellers.reduce((a,v)=>a+commission(v),0); }
 function salePoints(valor){
   const rules=[...(state.saleRules||[])].sort((a,b)=>Number(a.min||0)-Number(b.min||0));
@@ -723,7 +655,6 @@ function render() {
   document.getElementById("kTicket").textContent=fmt(tk);
   document.getElementById("kOS").textContent=os+" OS";
   document.getElementById("kMkt").textContent=totalMarketing();
-  document.getElementById("kBonus").textContent=fmt(totalCommission());
   document.getElementById("vend").innerHTML=state.sellers.map(v=>`<option value="${v.id}">${v.nome}</option>`).join("");
 
   document.getElementById("ranking").innerHTML=sortedSellers().map((v,i)=>`
@@ -753,9 +684,8 @@ function render() {
   document.getElementById("tvMiniTicket").textContent=fmt(tk);
   document.getElementById("tvMiniOS").textContent=os+" OS";
   document.getElementById("tvMiniMkt").textContent=totalMarketing()+" ações";
-  document.getElementById("tvMiniBonus").textContent=fmt(totalCommission());
-  document.getElementById("tvBonus").textContent=`Potencial máximo por vendedora: até ${fmt(state.config.bonusMax)}`;
-  document.getElementById("tvSellerSales").innerHTML=tvSorted.map((v,i)=>`<div class="tvSellerSale"><div class="topline">${tvAvatarHtml(v)}<div><h4>${i+1}º ${v.nome}</h4><small>${v.saleCount||0} vendas • meta ${fmt(sellerGoal(v))}</small></div></div><div class="saleValue">${fmt(v.vendas||0)}</div><div class="bar"><div class="fill" style="width:${Math.min(100,(Number(v.vendas)||0)/Math.max(1,sellerGoal(v))*100)}%"></div></div><small>Comissão prevista: ${fmt(commission(v))}</small></div>`).join("");
+  document.getElementById("tvBonus") && (document.getElementById("tvBonus").textContent=`Potencial máximo por vendedora: até ${fmt(state.config.bonusMax)}`);
+  document.getElementById("tvSellerSales").innerHTML=tvSorted.map((v,i)=>`<div class="tvSellerSale"><div class="topline">${tvAvatarHtml(v)}<div><h4>${i+1}º ${v.nome}</h4><small>${v.saleCount||0} vendas • meta ${fmt(sellerGoal(v))}</small></div></div><div class="saleValue">${fmt(v.vendas||0)}</div><div class="bar"><div class="fill" style="width:${Math.min(100,(Number(v.vendas)||0)/Math.max(1,sellerGoal(v))*100)}%"></div></div></div>`).join("");
 
   document.getElementById("sellerCards").innerHTML=sortedSellers().map(v=>`
     <div class="sellerCard">
@@ -853,8 +783,6 @@ function renderConfig(){
   document.getElementById("cfgMarketing").value=state.config.marketingMeta;
   document.getElementById("cfgBonus").value=state.config.bonusMax;
   document.getElementById("cfgLucro").value=state.config.lucroMinimo||0;
-  document.getElementById("cfgComissaoAbaixo").value=state.config.commissionBelow;
-  document.getElementById("cfgComissaoAcima").value=state.config.commissionAbove;
   document.getElementById("cfgValorVenda").value=state.config.fixedPerSale||0;
   document.getElementById("cfgAdminPin").value=state.config.adminPin||"2026";
   document.getElementById("cfgTvPin").value=state.config.tvPin||"1234";
@@ -864,10 +792,8 @@ function renderConfig(){
     <div style="display:grid;grid-template-columns:1fr auto;gap:8px;width:100%"><input id="foto_${v.id}" type="text" value="${v.foto||''}" placeholder="URL da foto da vendedora"><button onclick="saveSellerPhoto('${v.id}')" class="btn-soft">Salvar foto</button></div>
     <div class="financeGrid" style="width:100%">
       <div><small>Meta individual</small><input id="goal_${v.id}" type="number" value="${v.individualGoal||0}" placeholder="0 = automática"></div>
-      <div><small>% sem meta</small><input id="cb_${v.id}" type="number" step="0.01" value="${v.commissionBelow??''}" placeholder="Padrão loja"></div>
-      <div><small>% com meta</small><input id="ca_${v.id}" type="number" step="0.01" value="${v.commissionAbove??''}" placeholder="Padrão loja"></div>
-      <div><small>Fixo por venda</small><input id="fp_${v.id}" type="number" step="0.01" value="${v.fixedPerSale??''}" placeholder="Padrão loja"></div>
-    </div><button onclick="saveSellerFinance('${v.id}')" class="btn-dark" style="width:100%">Salvar meta e comissão desta vendedora</button>
+      <div><small>Comissão prevista (manual)</small><input id="manualCommission_${v.id}" type="number" step="0.01" min="0" value="${v.manualCommission??0}" placeholder="Digite o valor"></div>
+    </div><button onclick="saveSellerFinance('${v.id}')" class="btn-dark" style="width:100%">Salvar meta e comissão prevista</button>
   </div>`).join("");
 }
 function renderActions() {
@@ -889,7 +815,7 @@ function renderHistory(){
   if(tipo?.value==="penalidade") arr=arr.filter(x=>(x.pts||0)<0);
   if(tipo?.value==="positivo") arr=arr.filter(x=>(x.pts||0)>0);
   if(busca?.value) arr=arr.filter(x=>(x.texto||"").toLowerCase().includes(busca.value.toLowerCase()));
-  table.innerHTML=arr.slice(0,120).map(h=>`<tr class="${h.deleted?'statusDel':''}"><td>${h.createdLabel||'-'}</td><td><b>${h.sellerNome||'-'}</b></td><td>${h.tipo||'-'}</td><td>${h.icon||''} ${h.texto||''}</td><td class="${(h.pts||0)<0?'bad':'ok'}">${(h.pts||0)>0?'+':''}${h.pts||0}</td><td>${h.deleted?'<span class="badge red">apagado</span>':`<button class="btn-danger btn-mini" onclick="deleteLaunch('${h.id}')">Apagar</button>`}</td></tr>`).join("") || `<tr><td colspan="6">Nenhum lançamento encontrado.</td></tr>`;
+  table.innerHTML=arr.map(h=>`<tr class="${h.deleted?'statusDel':''}"><td>${h.createdLabel||'-'}</td><td><b>${h.sellerNome||'-'}</b></td><td>${h.tipo||'-'}</td><td>${h.icon||''} ${h.texto||''}</td><td class="${(h.pts||0)<0?'bad':'ok'}">${(h.pts||0)>0?'+':''}${h.pts||0}</td><td>${h.deleted?'<span class="badge red">apagado</span>':`<button class="btn-danger btn-mini" onclick="deleteLaunch('${h.id}')">Apagar</button>`}</td></tr>`).join("") || `<tr><td colspan="6">Nenhum lançamento encontrado.</td></tr>`;
 }
 function applyUndo(h){
   if(!h || !h.undo || h.deleted) return;
@@ -1124,8 +1050,6 @@ window.salvarConfig = async function() {
   state.config.marketingMeta=Number(document.getElementById("cfgMarketing").value)||300;
   state.config.bonusMax=Number(document.getElementById("cfgBonus").value)||2300;
   state.config.lucroMinimo=Number(document.getElementById("cfgLucro").value)||0;
-  state.config.commissionBelow=Number(document.getElementById("cfgComissaoAbaixo").value)||0;
-  state.config.commissionAbove=Number(document.getElementById("cfgComissaoAcima").value)||0;
   state.config.fixedPerSale=Number(document.getElementById("cfgValorVenda").value)||0;
   state.config.adminPin=document.getElementById("cfgAdminPin").value.trim()||"2026";
   state.config.tvPin=document.getElementById("cfgTvPin").value.trim()||"1234";
@@ -1136,7 +1060,7 @@ window.addSeller = async function() {
   const nome=document.getElementById("newSeller").value.trim();
   const foto=document.getElementById("newSellerFoto")?.value.trim() || "";
   if(!nome) return;
-  state.sellers.push({ id: slug(nome), nome, foto, pts:0, vendas:0, os:0, orcamentos:0, leads:0, marketing:0, recuperacoes:0, checklist:0, ticketSum:0, ticketCount:0, saleCount:0, assistFat:0, strategicBonus:0, strategicSales:0, falta:false });
+  state.sellers.push({ id: slug(nome), nome, foto, pts:0, vendas:0, os:0, orcamentos:0, leads:0, marketing:0, recuperacoes:0, checklist:0, ticketSum:0, ticketCount:0, saleCount:0, assistFat:0, strategicBonus:0, strategicSales:0, manualCommission:0, falta:false });
   document.getElementById("newSeller").value="";
   if(document.getElementById("newSellerFoto")) document.getElementById("newSellerFoto").value="";
   await saveState("👩 Nova vendedora adicionada: "+nome);
@@ -1152,9 +1076,9 @@ window.saveSellerPhoto = async function(id){
 window.saveSellerFinance = async function(id){
   const v=state.sellers.find(s=>s.id===id); if(!v) return;
   v.individualGoal=Number(document.getElementById("goal_"+id).value)||0;
-  const cb=document.getElementById("cb_"+id).value, ca=document.getElementById("ca_"+id).value, fp=document.getElementById("fp_"+id).value;
-  v.commissionBelow=cb===""?null:Number(cb); v.commissionAbove=ca===""?null:Number(ca); v.fixedPerSale=fp===""?null:Number(fp);
-  await saveState("💵 Meta e comissão de "+v.nome+" atualizadas."); toast("Meta e comissão salvas!");
+  v.manualCommission=Math.max(0,Number(document.getElementById("manualCommission_"+id).value)||0);
+  await saveState("💵 Meta e comissão prevista de "+v.nome+" atualizadas.");
+  toast("Meta e comissão prevista salvas!");
 }
 window.deleteLaunch = async function(id){
   const h=(state.launchHistory||[]).find(x=>x.id===id);
@@ -1167,6 +1091,42 @@ window.deleteLaunch = async function(id){
   await registerAction("🗑️",`Lançamento apagado: ${h.texto}`);
   toast("Lançamento apagado!");
 }
+window.zerarVendedoraSelecionada = async function(){
+  if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
+  const sellerId=document.getElementById("histVend")?.value;
+  if(!sellerId) return toast("Selecione uma vendedora no filtro do histórico.");
+  const v=state.sellers.find(s=>s.id===sellerId);
+  if(!v) return toast("Vendedora não encontrada.");
+  if(!confirm("Zerar somente "+v.nome+"? Os lançamentos antigos dela serão marcados como zerados e deixarão de contar.")) return;
+
+  (state.launchHistory||[]).forEach(h=>{
+    if(h.sellerId===sellerId && !h.deleted){
+      h.deleted=true;
+      h.deletedAt=nowBR();
+      h.deletedReason="zerado";
+    }
+  });
+
+  Object.assign(v,{
+    pts:0,vendas:0,os:0,orcamentos:0,leads:0,marketing:0,
+    recuperacoes:0,checklist:0,ticketSum:0,ticketCount:0,
+    saleCount:0,assistFat:0,strategicBonus:0,strategicSales:0,falta:false
+  });
+
+  state.strategicProducts=(state.strategicProducts||[]).map(p=>({...p,vendidos:0,ativo:true}));
+  for(const h of (state.launchHistory||[]).filter(x=>!x.deleted)){
+    const u=h.undo||{};
+    if(u.productId){
+      const p=state.strategicProducts.find(x=>x.id===u.productId);
+      if(p){p.vendidos=(Number(p.vendidos)||0)+1;if(p.vendidos>=p.qtd)p.ativo=false;}
+    }
+  }
+
+  await saveState("🧹 "+v.nome+" foi zerada individualmente.");
+  await registerAction("🧹",v.nome+" foi zerada individualmente.");
+  toast(v.nome+" foi zerada!");
+}
+
 window.recalcularPontuacao = async function(){
   if(!confirm("Recalcular usando o histórico ativo? Isso zera as métricas do mês e refaz pelos lançamentos.")) return;
   const base={ pts:0, vendas:0, os:0, orcamentos:0, leads:0, marketing:0, recuperacoes:0, checklist:0, ticketSum:0, ticketCount:0, saleCount:0, assistFat:0, strategicBonus:0, strategicSales:0, falta:false };
