@@ -395,7 +395,11 @@ body.tvMode main{max-width:none;margin:0;padding:0}
         <input id="histBusca" type="text" placeholder="Buscar descrição" oninput="renderHistory()">
         <button class="btn-dark" onclick="recalcularPontuacao()">Recalcular pontuação</button>
       </div>
-      <table class="table"><thead><tr><th>Data</th><th>Vendedora</th><th>Tipo</th><th>Descrição</th><th>Pontos</th><th>Ação</th></tr></thead><tbody id="histTable"></tbody></table>
+      <div class="alert" style="margin-bottom:14px">
+        <b>Correção de faturamento:</b> selecione uma vendedora no filtro acima e clique em “Ajustar faturamento”. O sistema cria um lançamento de correção no histórico, sem apagar as vendas existentes.
+        <button class="btn-main" style="width:auto;margin-left:10px;padding:9px 14px" onclick="ajustarFaturamentoSelecionado()">Ajustar faturamento</button>
+      </div>
+      <table class="table"><thead><tr><th>Data</th><th>Vendedora</th><th>Tipo</th><th>Descrição</th><th>Valor nas vendas</th><th>Pontos</th><th>Ação</th></tr></thead><tbody id="histTable"></tbody></table>
     </div>
   </section>
 
@@ -882,7 +886,11 @@ function renderHistory(){
   if(tipo?.value==="penalidade") arr=arr.filter(x=>(x.pts||0)<0);
   if(tipo?.value==="positivo") arr=arr.filter(x=>(x.pts||0)>0);
   if(busca?.value) arr=arr.filter(x=>(x.texto||"").toLowerCase().includes(busca.value.toLowerCase()));
-  table.innerHTML=arr.slice(0,120).map(h=>`<tr class="${h.deleted?'statusDel':''}"><td>${h.createdLabel||'-'}</td><td><b>${h.sellerNome||'-'}</b></td><td>${h.tipo||'-'}</td><td>${h.icon||''} ${h.texto||''}</td><td class="${(h.pts||0)<0?'bad':'ok'}">${(h.pts||0)>0?'+':''}${h.pts||0}</td><td>${h.deleted?'<span class="badge red">apagado</span>':`<button class="btn-danger btn-mini" onclick="deleteLaunch('${h.id}')">Apagar</button>`}</td></tr>`).join("") || `<tr><td colspan="6">Nenhum lançamento encontrado.</td></tr>`;
+  const totalVendasFiltrado=arr.filter(h=>!h.deleted).reduce((s,h)=>s+(Number(h.undo?.vendas)||0),0);
+  table.innerHTML=arr.slice(0,120).map(h=>{
+    const valorVendas=Number(h.undo?.vendas)||0;
+    return `<tr class="${h.deleted?'statusDel':''}"><td>${h.createdLabel||'-'}</td><td><b>${h.sellerNome||'-'}</b></td><td>${h.tipo||'-'}</td><td>${h.icon||''} ${h.texto||''}</td><td class="${valorVendas<0?'bad':valorVendas>0?'ok':''}">${valorVendas?fmt(valorVendas):'—'}</td><td class="${(h.pts||0)<0?'bad':'ok'}">${(h.pts||0)>0?'+':''}${h.pts||0}</td><td>${h.deleted?'<span class="badge red">apagado</span>':`<button class="btn-danger btn-mini" onclick="deleteLaunch('${h.id}')">Apagar</button>`}</td></tr>`;
+  }).join("") + `<tr><td colspan="4"><b>Total ativo do filtro</b></td><td><b>${fmt(totalVendasFiltrado)}</b></td><td colspan="2"></td></tr>` || `<tr><td colspan="7">Nenhum lançamento encontrado.</td></tr>`;
 }
 function applyUndo(h){
   if(!h || !h.undo || h.deleted) return;
@@ -1137,6 +1145,32 @@ window.deleteLaunch = async function(id){
   await registerAction("🗑️",`Lançamento apagado: ${h.texto}`);
   toast("Lançamento apagado!");
 }
+window.ajustarFaturamentoSelecionado = async function(){
+  if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
+  const sellerId=document.getElementById("histVend")?.value;
+  if(!sellerId) return toast("Selecione uma vendedora no filtro do histórico.");
+  const v=state.sellers.find(s=>s.id===sellerId);
+  if(!v) return toast("Vendedora não encontrada.");
+  const atual=Number(v.vendas)||0;
+  const entrada=prompt(`Faturamento atual de ${v.nome}: ${fmt(atual)}\nDigite o faturamento correto:`, String(atual.toFixed(2)).replace('.',','));
+  if(entrada===null) return;
+  const correto=Number(String(entrada).replace(/\./g,'').replace(',','.'));
+  if(!Number.isFinite(correto) || correto<0) return toast("Digite um valor válido.");
+  const diferenca=correto-atual;
+  if(Math.abs(diferenca)<0.005) return toast("O faturamento já está correto.");
+  if(!confirm(`Corrigir ${v.nome} de ${fmt(atual)} para ${fmt(correto)}?\nAjuste registrado: ${fmt(diferenca)}`)) return;
+  v.vendas=Math.max(0,atual+diferenca);
+  const texto=`Correção de faturamento: ${fmt(atual)} → ${fmt(correto)} (${diferenca>=0?'+':''}${fmt(diferenca)})`;
+  state.launchHistory=[{
+    id:"h"+Date.now()+Math.random().toString(16).slice(2), sellerId, sellerNome:v.nome, tipo:"correcao_faturamento", icon:"🧾", texto, pts:0,
+    undo:{sellerId, vendas:diferenca}, createdMs:Date.now(), createdLabel:nowBR(), deleted:false
+  },...(state.launchHistory||[])].slice(0,500);
+  await saveState(`🧾 Faturamento de ${v.nome} corrigido para ${fmt(correto)}.`);
+  await registerAction("🧾",texto);
+  renderAll();
+  toast("Faturamento corrigido e registrado no histórico!");
+}
+
 window.recalcularPontuacao = async function(){
   if(!confirm("Recalcular usando o histórico ativo? Isso zera as métricas do mês e refaz pelos lançamentos.")) return;
   const base={ pts:0, vendas:0, os:0, orcamentos:0, leads:0, marketing:0, recuperacoes:0, checklist:0, ticketSum:0, ticketCount:0, saleCount:0, assistFat:0, strategicBonus:0, strategicSales:0, falta:false };
