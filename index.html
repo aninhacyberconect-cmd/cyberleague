@@ -176,6 +176,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             </select>
             <input id="valor" type="number" placeholder="Valor R$ quando tiver">
             <input id="acessorios" type="number" placeholder="Qtd. acessórios (venda)">
+            <input id="quantidade" type="number" min="1" step="1" value="1" placeholder="Quantidade da regra (ex.: 3 dias)">
             <input id="desc" type="text" placeholder="Descrição: iPhone, tela, story...">
             <button class="btn-main full" onclick="lancar()">Lançar e atualizar TV</button>
           </div>
@@ -276,7 +277,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
         <p class="small">Use aqui para produtos parados, produtos que precisam girar ou missões do dia/semana. O bônus entra separado e não trava o bônus principal.</p>
         <br>
         <table class="table">
-          <thead><tr><th>Produto</th><th>Qtd.</th><th>Bônus</th><th>Pontos</th><th>Vendidos</th><th>Restante</th><th>Status</th></tr></thead>
+          <thead><tr><th>Produto</th><th>Qtd.</th><th>Bônus</th><th>Pontos</th><th>Vendidos</th><th>Restante</th><th>Status</th><th>Ação</th></tr></thead>
           <tbody id="estrategicosTable"></tbody>
         </table>
       </div>
@@ -800,8 +801,8 @@ function renderEstrategicos(){
   document.getElementById("eMissao").textContent=active[0]?.nome || "—";
   document.getElementById("estrategicosTable").innerHTML=products.map(p=>{
     const rest=Math.max(0,(Number(p.qtd)||0)-(Number(p.vendidos)||0));
-    return `<tr><td><b>${p.nome}</b></td><td>${p.qtd}</td><td>${fmt(p.bonus)}</td><td>+${p.pontos}</td><td>${p.vendidos||0}</td><td>${rest}</td><td>${rest>0?'<span class="badge green">ativo</span>':'<span class="badge red">finalizado</span>'}</td></tr>`;
-  }).join("") || `<tr><td colspan="7">Nenhum produto estratégico cadastrado.</td></tr>`;
+    return `<tr><td><b>${p.nome}</b></td><td>${p.qtd}</td><td>${fmt(p.bonus)}</td><td>+${p.pontos}</td><td>${p.vendidos||0}</td><td>${rest}</td><td>${rest>0?'<span class="badge green">ativo</span>':'<span class="badge red">finalizado</span>'}</td><td><button class="btn-danger btn-mini" onclick="deleteStrategicProduct('${p.id}')">Apagar</button></td></tr>`;
+  }).join("") || `<tr><td colspan="8">Nenhum produto estratégico cadastrado.</td></tr>`;
   const epVend=document.getElementById("epVend");
   const epProduto=document.getElementById("epProduto");
   if(epVend) epVend.innerHTML=state.sellers.map(v=>`<option value="${v.id}">${v.nome}</option>`).join("");
@@ -902,6 +903,7 @@ function applyUndo(h){
   if(u.leads) v.leads=Math.max(0,(Number(v.leads)||0)-u.leads);
   if(u.strategicBonus) v.strategicBonus=Math.max(0,(Number(v.strategicBonus)||0)-u.strategicBonus);
   if(u.strategicSales) v.strategicSales=Math.max(0,(Number(v.strategicSales)||0)-u.strategicSales);
+  if(u.counterKey) v[u.counterKey]=Math.max(0,(Number(v[u.counterKey])||0)-(Number(u.counterQty)||1));
   if(u.faltaSet) v.falta=false;
   if(u.productId){ const p=(state.strategicProducts||[]).find(x=>x.id===u.productId); if(p){ p.vendidos=Math.max(0,(Number(p.vendidos)||0)-1); p.ativo=true; } }
 }
@@ -918,11 +920,12 @@ window.lancar = async function() {
   const tipo = document.getElementById("tipo")?.value;
   const valor = Number(document.getElementById("valor")?.value) || 0;
   const acessorios = Number(document.getElementById("acessorios")?.value) || 0;
+  const quantidadeInformada = Math.max(1, Math.floor(Number(document.getElementById("quantidade")?.value) || 1));
   const desc = document.getElementById("desc")?.value.trim() || "";
   const v = state.sellers.find(s => s.id === sellerId);
   if (!v) return toast("Selecione uma vendedora.");
   let pts=0, icon="⚡", texto="";
-  let undo={sellerId,pts:0,vendas:0,os:0,orcamentos:0,leads:0,marketing:0,recuperacoes:0,checklist:0,ticketSum:0,ticketCount:0,saleCount:0,assistFat:0,strategicBonus:0,strategicSales:0,acessorios:0,counterKey:null,faltaSet:false};
+  let undo={sellerId,pts:0,vendas:0,os:0,orcamentos:0,leads:0,marketing:0,recuperacoes:0,checklist:0,ticketSum:0,ticketCount:0,saleCount:0,assistFat:0,strategicBonus:0,strategicSales:0,acessorios:0,counterKey:null,counterQty:0,faltaSet:false};
 
   if(tipo==="venda"){
     pts=salePoints(valor);
@@ -940,17 +943,20 @@ window.lancar = async function() {
   } else {
     const rule=getRule(tipo);
     if(!rule || rule.active===false) return toast("Regra inativa ou não encontrada.");
-    pts=Number(rule.points)||0;
+    const quantidade = rule.effect === "falta" ? 1 : quantidadeInformada;
+    const pontosUnitarios=Number(rule.points)||0;
+    pts=pontosUnitarios*quantidade;
     const effect=rule.effect || "points";
-    if(effect==="marketing"){v.marketing=(Number(v.marketing)||0)+1; v[tipo]=(Number(v[tipo])||0)+1; undo.marketing=1; undo.counterKey=tipo; icon="📱";}
-    else if(effect==="checklist"){v.checklist=(Number(v.checklist)||0)+1; v[tipo]=(Number(v[tipo])||0)+1; undo.checklist=1; undo.counterKey=tipo; icon="✅";}
-    else if(effect==="lead"){v.leads=(Number(v.leads)||0)+1; undo.leads=1; icon="🎯";}
-    else if(effect==="recuperacao"){v.recuperacoes=(Number(v.recuperacoes)||0)+1; v.vendas=(Number(v.vendas)||0)+valor; undo.recuperacoes=1; undo.vendas=valor; icon="♻️";}
-    else if(effect==="orcamento"){v.orcamentos=(Number(v.orcamentos)||0)+1; undo.orcamentos=1; icon="🧾";}
-    else if(effect==="os"){v.os=(Number(v.os)||0)+1; v.vendas=(Number(v.vendas)||0)+valor; v.assistFat=(Number(v.assistFat)||0)+valor; undo.os=1; undo.vendas=valor; undo.assistFat=valor; icon="🔧";}
+    if(effect==="marketing"){v.marketing=(Number(v.marketing)||0)+quantidade; v[tipo]=(Number(v[tipo])||0)+quantidade; undo.marketing=quantidade; undo.counterKey=tipo; undo.counterQty=quantidade; icon="📱";}
+    else if(effect==="checklist"){v.checklist=(Number(v.checklist)||0)+quantidade; v[tipo]=(Number(v[tipo])||0)+quantidade; undo.checklist=quantidade; undo.counterKey=tipo; undo.counterQty=quantidade; icon="✅";}
+    else if(effect==="lead"){v.leads=(Number(v.leads)||0)+quantidade; undo.leads=quantidade; icon="🎯";}
+    else if(effect==="recuperacao"){v.recuperacoes=(Number(v.recuperacoes)||0)+quantidade; v.vendas=(Number(v.vendas)||0)+valor; undo.recuperacoes=quantidade; undo.vendas=valor; icon="♻️";}
+    else if(effect==="orcamento"){v.orcamentos=(Number(v.orcamentos)||0)+quantidade; undo.orcamentos=quantidade; icon="🧾";}
+    else if(effect==="os"){v.os=(Number(v.os)||0)+quantidade; v.vendas=(Number(v.vendas)||0)+valor; v.assistFat=(Number(v.assistFat)||0)+valor; undo.os=quantidade; undo.vendas=valor; undo.assistFat=valor; icon="🔧";}
     else if(effect==="falta"){v.falta=true; undo.faltaSet=true; icon="⚠️";}
     else {icon=pts<0?"⚠️":"⚡";}
-    texto=`${v.nome} • ${rule.label} (${pts} pts)${valor?" • "+fmt(valor):""}${desc?" — "+desc:""}`;
+    const detalheQtd=quantidade>1?` • ${quantidade}x (${pontosUnitarios} pts cada = ${pts} pts)`:` (${pts} pts)`;
+    texto=`${v.nome} • ${rule.label}${detalheQtd}${valor?" • "+fmt(valor):""}${desc?" — "+desc:""}`;
   }
 
   v.pts=Math.max(0,(Number(v.pts)||0)+pts);
@@ -960,6 +966,7 @@ window.lancar = async function() {
   if(typeof registerAction==="function") await registerAction(icon,texto,undo);
   document.getElementById("valor").value="";
   if(document.getElementById("acessorios")) document.getElementById("acessorios").value="";
+  if(document.getElementById("quantidade")) document.getElementById("quantidade").value="1";
   document.getElementById("desc").value="";
   toast("Lançado e sincronizado!");
 }
@@ -983,6 +990,19 @@ window.addStrategicProduct = async function() {
   await registerAction("🎯","Novo Produto Estratégico cadastrado: "+nome);
   toast("Produto estratégico cadastrado!");
 }
+window.deleteStrategicProduct = async function(id) {
+  if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
+  const p=(state.strategicProducts||[]).find(x=>x.id===id);
+  if(!p) return;
+  const vendidos=Number(p.vendidos)||0;
+  const aviso=vendidos>0?` Este produto possui ${vendidos} venda(s) registrada(s). O histórico dessas vendas será mantido.`:"";
+  if(!confirm(`Apagar o produto estratégico “${p.nome}”?${aviso}`)) return;
+  state.strategicProducts=(state.strategicProducts||[]).filter(x=>x.id!==id);
+  await saveState("🗑️ Produto Estratégico apagado: "+p.nome);
+  await registerAction("🗑️","Produto Estratégico apagado: "+p.nome);
+  toast("Produto estratégico apagado!");
+}
+
 window.sellStrategicProduct = async function() {
   const sellerId=document.getElementById("epVend").value;
   const productId=document.getElementById("epProduto").value;
@@ -1129,6 +1149,7 @@ window.recalcularPontuacao = async function(){
     if(u.vendas) v.vendas+=u.vendas; if(u.ticketSum) v.ticketSum+=u.ticketSum; if(u.ticketCount) v.ticketCount+=u.ticketCount; if(u.saleCount) v.saleCount+=u.saleCount;
     if(u.os) v.os+=u.os; if(u.assistFat) v.assistFat+=u.assistFat; if(u.orcamentos) v.orcamentos+=u.orcamentos;
     if(u.marketing) v.marketing+=u.marketing; if(u.checklist) v.checklist+=u.checklist; if(u.recuperacoes) v.recuperacoes+=u.recuperacoes; if(u.leads) v.leads+=u.leads;
+    if(u.counterKey) v[u.counterKey]=(Number(v[u.counterKey])||0)+(Number(u.counterQty)||1);
     if(u.strategicBonus) v.strategicBonus+=u.strategicBonus; if(u.strategicSales) v.strategicSales+=u.strategicSales; if(u.faltaSet) v.falta=true;
     if(u.productId){ const p=(state.strategicProducts||[]).find(x=>x.id===u.productId); if(p){ p.vendidos=(Number(p.vendidos)||0)+1; if(p.vendidos>=p.qtd) p.ativo=false; } }
   }
