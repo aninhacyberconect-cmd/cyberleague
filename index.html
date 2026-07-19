@@ -394,13 +394,8 @@ body.tvMode main{max-width:none;margin:0;padding:0}
         <select id="histTipo" onchange="renderHistory()"><option value="">Todos os tipos</option><option value="penalidade">Penalidades</option><option value="positivo">Pontuações positivas</option></select>
         <input id="histBusca" type="text" placeholder="Buscar descrição" oninput="renderHistory()">
         <button class="btn-dark" onclick="recalcularPontuacao()">Recalcular pontuação</button>
-        <button class="btn-danger" onclick="zerarVendedoraSelecionada()">Zerar vendedora selecionada</button>
       </div>
-      <div class="alert" style="margin-bottom:14px">
-        <b>Histórico completo:</b> todos os lançamentos ficam visíveis, sem limite de quantidade. Para zerar somente uma pessoa, selecione a vendedora no filtro e use “Zerar vendedora selecionada”. Os registros antigos continuam aparecendo no histórico como zerados, mas deixam de contar nos totais.
-        <button class="btn-main" style="width:auto;margin-left:10px;padding:9px 14px" onclick="ajustarFaturamentoSelecionado()">Ajustar faturamento</button>
-      </div>
-      <table class="table"><thead><tr><th>Data</th><th>Vendedora</th><th>Tipo</th><th>Descrição</th><th>Valor nas vendas</th><th>Pontos</th><th>Ação</th></tr></thead><tbody id="histTable"></tbody></table>
+      <table class="table"><thead><tr><th>Data</th><th>Vendedora</th><th>Tipo</th><th>Descrição</th><th>Pontos</th><th>Ação</th></tr></thead><tbody id="histTable"></tbody></table>
     </div>
   </section>
 
@@ -478,7 +473,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <button class="btn-main full" onclick="salvarConfig()">Salvar configurações e acessos</button>
           </div>
         </div>
-        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. Ao salvar, você poderá aplicar as novas faixas também às vendas já lançadas e recalcular tudo.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
+        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. As alterações passam a valer nos próximos lançamentos.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
         <div class="panel"><h2>🔗 Link das vendedoras</h2><button class="btn-main" onclick="copySellerLink()">Copiar link das vendedoras</button><p class="small" style="margin-top:8px">Esse link abre direto no login da TV. A equipe verá somente a tela da TV, sem acesso ao restante do aplicativo.</p></div>
         <div class="panel"><h2>🧹 Zerar mês</h2>
           <p class="small">Use apenas no início de um novo mês, depois de salvar os resultados.</p><br>
@@ -615,14 +610,33 @@ function commissionRate(v){ const hit=(Number(v.vendas)||0)>=sellerGoal(v); retu
 function commission(v){ const fixed=Number(v.fixedPerSale ?? state.config.fixedPerSale)||0; return ((Number(v.vendas)||0)*commissionRate(v)/100)+((Number(v.saleCount)||0)*fixed); }
 function totalCommission(){ return state.sellers.reduce((a,v)=>a+commission(v),0); }
 function salePoints(valor){ const r=(state.saleRules||[]).find(x=>valor>=Number(x.min||0)&&valor<=Number(x.max??999999999)); return r?Number(r.points)||0:0; }
+function inicioSemana(ms) {
+  const d = new Date(ms);
+  d.setHours(0,0,0,0);
+  const dia = d.getDay();
+  const ajuste = dia === 0 ? -6 : 1 - dia; // segunda-feira
+  d.setDate(d.getDate() + ajuste);
+  return d.getTime();
+}
+function bonusIndividualSemanal(v) {
+  const semanas = {};
+  (state.launchHistory||[]).forEach(h=>{
+    if(h.deleted || h.sellerId !== v.id) return;
+    const pts = Number(h.undo?.pts)||0;
+    if(!pts) return;
+    const chave = inicioSemana(Number(h.createdMs)||Date.now());
+    semanas[chave] = (semanas[chave]||0) + pts;
+  });
+  let total = 0;
+  Object.values(semanas).forEach(pts=>{
+    if(pts>=220) total += 250;
+    else if(pts>=170) total += 200;
+    else if(pts>=120) total += 150;
+  });
+  return Math.min(1000,total);
+}
 function bonusParts(v) {
-  const ciclos = Math.floor((v.pts||0)/250);
-  const resto = (v.pts||0) % 250;
-  let parcial = 0;
-  if(resto>=220) parcial = 250;
-  else if(resto>=170) parcial = 200;
-  else if(resto>=120) parcial = 150;
-  const individual = Math.min(1000, ciclos*250 + parcial);
+  const individual = bonusIndividualSemanal(v);
   const presenca = v.falta ? 0 : 100;
   const metaLoja = totalFat() >= state.config.meta ? 400 : 0;
   const ticket = 0; // bônus de ticket médio é coletivo da loja, liberado apenas no fechamento
@@ -815,8 +829,8 @@ function renderEstrategicos(){
 }
 
 function renderBonus(){
-  document.getElementById("bonusTable").innerHTML=sortedSellers().map(v=>{ const p=bonusParts(v); return `
-    <tr><td><b>${v.nome}</b></td><td>${fmt(p.individual)}</td><td>${fmt(p.presenca)}</td><td>${fmt(p.metaLoja)}</td><td>${fmt(p.ticket)}</td><td>${fmt(p.mediaSemana)}</td><td>${fmt(p.assist)}</td><td class="ok">${fmt(bonus(v))}</td></tr>`}).join("");
+  document.getElementById("bonusTable").innerHTML=sortedSellers().map(v=>{ const p=bonusParts(v); const estrategico=Number(v.strategicBonus)||0; return `
+    <tr><td><b>${v.nome}</b></td><td>${fmt(p.individual)}</td><td>${fmt(p.presenca)}</td><td>${fmt(p.metaLoja)}</td><td>${fmt(p.ticket)}</td><td>${fmt(p.mediaSemana)}</td><td>${fmt(p.assist)}</td><td>${fmt(estrategico)}</td><td class="ok">${fmt(bonus(v))}</td></tr>`}).join("");
 }
 
 
@@ -887,11 +901,7 @@ function renderHistory(){
   if(tipo?.value==="penalidade") arr=arr.filter(x=>(x.pts||0)<0);
   if(tipo?.value==="positivo") arr=arr.filter(x=>(x.pts||0)>0);
   if(busca?.value) arr=arr.filter(x=>(x.texto||"").toLowerCase().includes(busca.value.toLowerCase()));
-  const totalVendasFiltrado=arr.filter(h=>!h.deleted).reduce((s,h)=>s+(Number(h.undo?.vendas)||0),0);
-  table.innerHTML=arr.map(h=>{
-    const valorVendas=Number(h.undo?.vendas)||0;
-    return `<tr class="${h.deleted?'statusDel':''}"><td>${h.createdLabel||'-'}</td><td><b>${h.sellerNome||'-'}</b></td><td>${h.tipo||'-'}</td><td>${h.icon||''} ${h.texto||''}</td><td class="${valorVendas<0?'bad':valorVendas>0?'ok':''}">${valorVendas?fmt(valorVendas):'—'}</td><td class="${(h.pts||0)<0?'bad':'ok'}">${(h.pts||0)>0?'+':''}${h.pts||0}</td><td>${h.deleted?`<span class="badge red">${h.deletedReason?'zerado':'apagado'}</span>`:`<button class="btn-danger btn-mini" onclick="deleteLaunch('${h.id}')">Apagar</button>`}</td></tr>`;
-  }).join("") + `<tr><td colspan="4"><b>Total ativo do filtro</b></td><td><b>${fmt(totalVendasFiltrado)}</b></td><td colspan="2"></td></tr>` || `<tr><td colspan="7">Nenhum lançamento encontrado.</td></tr>`;
+  table.innerHTML=arr.slice(0,120).map(h=>`<tr class="${h.deleted?'statusDel':''}"><td>${h.createdLabel||'-'}</td><td><b>${h.sellerNome||'-'}</b></td><td>${h.tipo||'-'}</td><td>${h.icon||''} ${h.texto||''}</td><td class="${(h.pts||0)<0?'bad':'ok'}">${(h.pts||0)>0?'+':''}${h.pts||0}</td><td>${h.deleted?'<span class="badge red">apagado</span>':`<button class="btn-danger btn-mini" onclick="deleteLaunch('${h.id}')">Apagar</button>`}</td></tr>`).join("") || `<tr><td colspan="6">Nenhum lançamento encontrado.</td></tr>`;
 }
 function applyUndo(h){
   if(!h || !h.undo || h.deleted) return;
@@ -970,7 +980,7 @@ window.lancar = async function() {
 
   v.pts=Math.max(0,(Number(v.pts)||0)+pts);
   undo.pts=pts;
-  state.launchHistory=[{id:"h"+Date.now()+Math.random().toString(16).slice(2),sellerId,sellerNome:v.nome,tipo,ruleId:(tipo!=="venda"?tipo:null),ruleQty:(tipo!=="venda"?(rule?.effect==="falta"?1:quantidadeInformada):1),unitPoints:(tipo!=="venda"?Number(rule?.points)||0:null),icon,texto,pts,undo,createdMs:Date.now(),createdLabel:nowBR(),deleted:false},...(state.launchHistory||[])];
+  state.launchHistory=[{id:"h"+Date.now()+Math.random().toString(16).slice(2),sellerId,sellerNome:v.nome,tipo,icon,texto,pts,undo,createdMs:Date.now(),createdLabel:nowBR(),deleted:false},...(state.launchHistory||[])].slice(0,500);
   await saveState(`${icon} ${texto}`);
   if(typeof registerAction==="function") await registerAction(icon,texto,undo);
   document.getElementById("valor").value="";
@@ -1059,19 +1069,19 @@ window.addRule = async function(){
 }
 window.saveRule = async function(id){
   if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
-  normalizeRules(); const r=state.pointRules.find(x=>x.id===id); if(!r) return;
-  const oldPoints=Number(r.points)||0;
+  normalizeRules();
+  const r=state.pointRules.find(x=>x.id===id);
+  if(!r) return;
   r.label=document.getElementById("rule_label_"+id).value.trim() || r.label;
   r.category=document.getElementById("rule_category_"+id).value.trim() || "Extra";
   r.points=Number(document.getElementById("rule_points_"+id).value)||0;
   r.effect=document.getElementById("rule_effect_"+id).value || "points";
-  r.active=document.getElementById("rule_active_"+id).checked; r.show=document.getElementById("rule_show_"+id).checked;
-  const matches=(state.launchHistory||[]).filter(h=>!h.deleted && h.tipo===id);
-  if(matches.length && oldPoints!==r.points && confirm(`Alterar também os ${matches.length} lançamentos antigos desta regra e recalcular os pontos?`)){
-    matches.forEach(h=>{ const u=h.undo||{}; let q=Number(h.ruleQty)||Number(u.counterQty)||Number(u.os)||Number(u.orcamentos)||Number(u.leads)||Number(u.recuperacoes)||Number(u.marketing)||Number(u.checklist)||1; if(!h.ruleQty && oldPoints!==0 && Number(h.pts)) q=Math.max(1,Math.round(Number(h.pts)/oldPoints)); h.ruleId=id; h.ruleQty=q; h.unitPoints=r.points; h.pts=r.points*q; u.pts=h.pts; h.undo=u; });
-    await recalcularPontuacaoSemConfirmar();
-  }
-  await saveState("⚙️ Regra atualizada: "+r.label); updateRulesInGestor(); renderRules(); renderAll(); toast("Regra salva e lançamentos recalculados!");
+  r.active=document.getElementById("rule_active_"+id).checked;
+  r.show=document.getElementById("rule_show_"+id).checked;
+  await saveState("⚙️ Regra atualizada: "+r.label);
+  updateRulesInGestor();
+  renderRules();
+  toast("Regra salva e atualizada no Gestor!");
 }
 window.deleteRule = async function(id){
   if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
@@ -1093,38 +1103,8 @@ window.resetPointRules = async function(){
 }
 
 window.saveSaleRules=async function(){
-  if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
-  const novasRegras=(state.saleRules||[]).map((r,i)=>({
-    min:Number(document.getElementById("srMin_"+i).value)||0,
-    max:document.getElementById("srMax_"+i).value===""?999999999:Number(document.getElementById("srMax_"+i).value),
-    points:Number(document.getElementById("srPts_"+i).value)||0
-  })).sort((a,b)=>a.min-b.min);
-  state.saleRules=novasRegras;
-
-  const vendasAntigas=(state.launchHistory||[]).filter(h=>!h.deleted && h.tipo==="venda");
-  let atualizouAntigas=false;
-  if(vendasAntigas.length && confirm(`Aplicar as novas faixas também às ${vendasAntigas.length} vendas já lançadas e recalcular os pontos?`)){
-    for(const h of vendasAntigas){
-      const u=h.undo||{};
-      const valor=Number(u.vendas)||0;
-      const acessorios=Number(u.acessorios)||0;
-      let novosPontos=salePoints(valor);
-      if(valor>=650) novosPontos+=10;
-      if(acessorios>=5) novosPontos+=10;
-      else if(acessorios>=3) novosPontos+=5;
-      h.pts=novosPontos;
-      u.pts=novosPontos;
-      h.undo=u;
-      h.saleBasePoints=salePoints(valor);
-      h.saleValue=valor;
-      h.saleAccessories=acessorios;
-    }
-    await recalcularPontuacaoSemConfirmar();
-    atualizouAntigas=true;
-  }
-  await saveState(atualizouAntigas?"💰 Faixas de venda atualizadas e vendas antigas recalculadas.":"💰 Pontos por faixa de venda atualizados.");
-  renderAll();
-  toast(atualizouAntigas?"Faixas salvas e vendas antigas recalculadas!":"Pontos das vendas salvos!");
+  state.saleRules=(state.saleRules||[]).map((r,i)=>({min:Number(document.getElementById("srMin_"+i).value)||0,max:document.getElementById("srMax_"+i).value===""?999999999:Number(document.getElementById("srMax_"+i).value),points:Number(document.getElementById("srPts_"+i).value)||0})).sort((a,b)=>a.min-b.min);
+  await saveState("💰 Pontos por faixa de venda atualizados."); toast("Pontos das vendas salvos!");
 }
 window.salvarConfig = async function() {
   state.config.meta=Number(document.getElementById("cfgMeta").value)||200000;
@@ -1175,57 +1155,6 @@ window.deleteLaunch = async function(id){
   await saveState("🗑️ Lançamento apagado e pontuação recalculada.");
   await registerAction("🗑️",`Lançamento apagado: ${h.texto}`);
   toast("Lançamento apagado!");
-}
-window.zerarVendedoraSelecionada = async function(){
-  if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
-  const sellerId=document.getElementById("histVend")?.value;
-  if(!sellerId) return toast("Selecione uma vendedora no filtro do histórico.");
-  const v=state.sellers.find(s=>s.id===sellerId);
-  if(!v) return toast("Vendedora não encontrada.");
-  const ativos=(state.launchHistory||[]).filter(h=>h.sellerId===sellerId && !h.deleted);
-  if(!confirm(`Zerar somente ${v.nome}?\n\nIsso vai zerar vendas, pontos, bônus, ticket e demais números dela. Os ${ativos.length} lançamentos continuarão visíveis no histórico, marcados como zerados.`)) return;
-  for(const h of ativos){
-    applyUndo(h);
-    h.deleted=true;
-    h.deletedAt=nowBR();
-    h.deletedReason="Zerado somente para esta vendedora";
-  }
-  Object.assign(v,{pts:0,vendas:0,os:0,orcamentos:0,leads:0,marketing:0,recuperacoes:0,checklist:0,ticketSum:0,ticketCount:0,saleCount:0,assistFat:0,strategicBonus:0,strategicSales:0,falta:false,acessorios:0});
-  await saveState(`🧹 Dados de ${v.nome} zerados individualmente.`);
-  await registerAction("🧹",`Dados de ${v.nome} zerados individualmente.`);
-  renderAll();
-  toast(`${v.nome} foi zerada sem afetar as outras vendedoras.`);
-}
-
-window.ajustarFaturamentoSelecionado = async function(){
-  if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
-  const sellerId=document.getElementById("histVend")?.value;
-  if(!sellerId) return toast("Selecione uma vendedora no filtro do histórico.");
-  const v=state.sellers.find(s=>s.id===sellerId);
-  if(!v) return toast("Vendedora não encontrada.");
-  const atual=Number(v.vendas)||0;
-  const entrada=prompt(`Faturamento atual de ${v.nome}: ${fmt(atual)}\nDigite o faturamento correto:`, String(atual.toFixed(2)).replace('.',','));
-  if(entrada===null) return;
-  const correto=Number(String(entrada).replace(/\./g,'').replace(',','.'));
-  if(!Number.isFinite(correto) || correto<0) return toast("Digite um valor válido.");
-  const diferenca=correto-atual;
-  if(Math.abs(diferenca)<0.005) return toast("O faturamento já está correto.");
-  if(!confirm(`Corrigir ${v.nome} de ${fmt(atual)} para ${fmt(correto)}?\nAjuste registrado: ${fmt(diferenca)}`)) return;
-  v.vendas=Math.max(0,atual+diferenca);
-  const texto=`Correção de faturamento: ${fmt(atual)} → ${fmt(correto)} (${diferenca>=0?'+':''}${fmt(diferenca)})`;
-  state.launchHistory=[{
-    id:"h"+Date.now()+Math.random().toString(16).slice(2), sellerId, sellerNome:v.nome, tipo:"correcao_faturamento", icon:"🧾", texto, pts:0,
-    undo:{sellerId, vendas:diferenca}, createdMs:Date.now(), createdLabel:nowBR(), deleted:false
-  },...(state.launchHistory||[])];
-  await saveState(`🧾 Faturamento de ${v.nome} corrigido para ${fmt(correto)}.`);
-  await registerAction("🧾",texto);
-  renderAll();
-  toast("Faturamento corrigido e registrado no histórico!");
-}
-
-async function recalcularPontuacaoSemConfirmar(){
-  const base={pts:0,vendas:0,os:0,orcamentos:0,leads:0,marketing:0,recuperacoes:0,checklist:0,ticketSum:0,ticketCount:0,saleCount:0,assistFat:0,strategicBonus:0,strategicSales:0,falta:false}; state.sellers=state.sellers.map(v=>({...v,...base}));
-  const active=[...(state.launchHistory||[])].filter(h=>!h.deleted).sort((a,b)=>(a.createdMs||0)-(b.createdMs||0)); for(const h of active){const u=h.undo||{},v=state.sellers.find(s=>s.id===u.sellerId); if(!v)continue; v.pts=Math.max(0,(Number(v.pts)||0)+(Number(u.pts)||0)); ['vendas','ticketSum','ticketCount','saleCount','os','assistFat','orcamentos','marketing','checklist','recuperacoes','leads','strategicBonus','strategicSales'].forEach(k=>{if(u[k])v[k]=(Number(v[k])||0)+Number(u[k]);}); if(u.counterKey)v[u.counterKey]=(Number(v[u.counterKey])||0)+(Number(u.counterQty)||1); if(u.faltaSet)v.falta=true;}
 }
 window.recalcularPontuacao = async function(){
   if(!confirm("Recalcular usando o histórico ativo? Isso zera as métricas do mês e refaz pelos lançamentos.")) return;
