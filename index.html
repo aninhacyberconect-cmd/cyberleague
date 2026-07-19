@@ -72,10 +72,10 @@ td{padding:12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-al
 .todo span{font-size:13px}.todo b{font-size:13px}
 .split{display:flex;gap:8px;align-items:center}
 /* TV */
-body.tvMode{background:#030712;color:#fff;overflow:hidden}
+body.tvMode{background:#030712;color:#fff;overflow-y:auto;overflow-x:hidden}
 body.tvMode header{display:none}
 body.tvMode main{max-width:none;margin:0;padding:0}
-.tvScreen{background:radial-gradient(circle at top,#152033,#030712 64%);color:#fff;min-height:100vh;padding:22px;overflow:hidden}
+.tvScreen{background:radial-gradient(circle at top,#152033,#030712 64%);color:#fff;min-height:100vh;padding:22px;overflow-y:auto;overflow-x:hidden}
 .tvTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .tvTop img{height:42px}.live{color:#74ff92;font-weight:900;font-size:13px}.clock{font-weight:900;color:#ddd}
 .tvGrid{display:grid;grid-template-columns:330px 1fr 330px;gap:16px}
@@ -311,7 +311,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
       <table class="table"><thead><tr><th>Vendedora</th><th>Individual</th><th>Presença</th><th>Meta loja</th><th>Ticket loja</th><th>Média semanal</th><th>Assistência</th><th>Produto Estratégico</th><th>Total</th></tr></thead><tbody id="bonusTable"></tbody></table>
 
       <div class="alert" style="margin-top:14px">
-        As bonificações exibidas aqui são somente as que você cadastrar nas regras e nos produtos estratégicos. Não existe nenhuma faixa automática.
+        Importante: o valor da venda não vira dinheiro direto para a vendedora. A venda soma pontos. O bônus em dinheiro só libera quando ela atinge as faixas da semana: 120 pts = R$150, 170 pts = R$200, 220 pts = R$250. Produto Estratégico continua somando bônus separado.
       </div>
     </div>
     <div class="grid2">
@@ -412,7 +412,6 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <th>Ação</th>
             <th>Categoria</th>
             <th>Pontos</th>
-            <th>Bonificação</th>
             <th>Efeito</th>
             <th>Ativa</th>
             <th>Gestor</th>
@@ -428,7 +427,6 @@ body.tvMode main{max-width:none;margin:0;padding:0}
         <div class="formgrid">
           <input id="ruleLabel" type="text" placeholder="Nome da ação. Ex: Pós-venda">
           <input id="rulePoints" type="number" placeholder="Pontos. Ex: 5 ou -10">
-          <input id="ruleBonus" type="number" step="0.01" placeholder="Bonificação em R$. Ex: 10">
           <select id="ruleCategory">
             <option value="Marketing">Marketing</option>
             <option value="Organização">Organização</option>
@@ -447,10 +445,10 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <option value="falta">Marcar falta</option>
           </select>
           <button class="btn-main full" onclick="addRule()">Adicionar regra</button>
-          <button class="btn-dark full" onclick="resetPointRules()">Apagar todas as regras</button>
+          <button class="btn-dark full" onclick="resetPointRules()">Restaurar regras padrão</button>
         </div>
       </div>
-      <div class="alert">Venda continua separada, mas começa sem faixa de pontos. Você cria todas as faixas e todas as regras. Cada regra pode ter pontos e bonificação.</div>
+      <div class="alert">Venda continua separada, calculando por valor, ticket e acessórios. Todas as outras ações vêm dessas regras.</div>
     </div>
   </div>
 </section>
@@ -474,7 +472,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <button class="btn-main full" onclick="salvarConfig()">Salvar configurações e acessos</button>
           </div>
         </div>
-        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. As alterações passam a valer nos próximos lançamentos.</p><br><div id="saleRulesEditor"></div><button class="btn-soft" style="margin-top:10px" onclick="addSaleRule()">Adicionar faixa</button> <button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
+        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. As alterações passam a valer nos próximos lançamentos.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
         <div class="panel"><h2>🔗 Link das vendedoras</h2><button class="btn-main" onclick="copySellerLink()">Copiar link das vendedoras</button><p class="small" style="margin-top:8px">Esse link abre direto no login da TV. A equipe verá somente a tela da TV, sem acesso ao restante do aplicativo.</p></div>
         <div class="panel"><h2>🧹 Zerar mês</h2>
           <p class="small">Use apenas no início de um novo mês, depois de salvar os resultados.</p><br>
@@ -512,23 +510,51 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let state = {
-  config: { meta:0, ticketMeta:0, osMeta:0, marketingMeta:0, bonusMax:0, lucroMinimo:0, commissionBelow:0, commissionAbove:0, fixedPerSale:0, adminPin:"2026", tvPin:"1234" },
-  saleRules:[],
-  sellers:[],
-  flash: "🔥 Cyber League configurável. Cadastre sua equipe e crie suas regras.",
-  strategicProducts:[],
-  pointRules:[],
+  config: { meta: 200000, ticketMeta: 650, osMeta: 120, marketingMeta: 300, bonusMax: 2300, lucroMinimo: 0, commissionBelow:0.5, commissionAbove:1, fixedPerSale:0, adminPin:"2026", tvPin:"1234" },
+  saleRules:[{min:0,max:499.99,points:5},{min:500,max:999.99,points:8},{min:1000,max:2499.99,points:12},{min:2500,max:4999.99,points:18},{min:5000,max:999999999,points:25}],
+  sellers: [
+    { id: "duda", nome: "Duda", pts: 0, vendas: 0, os: 0, orcamentos: 0, leads: 0, marketing: 0, recuperacoes: 0, checklist: 0, ticketSum: 0, ticketCount: 0, assistFat: 0, falta: false },
+    { id: "cinthia", nome: "Cinthia", pts: 0, vendas: 0, os: 0, orcamentos: 0, leads: 0, marketing: 0, recuperacoes: 0, checklist: 0, ticketSum: 0, ticketCount: 0, assistFat: 0, falta: false },
+    { id: "ana", nome: "Ana", pts: 0, vendas: 0, os: 0, orcamentos: 0, leads: 0, marketing: 0, recuperacoes: 0, checklist: 0, ticketSum: 0, ticketCount: 0, assistFat: 0, falta: false }
+  ],
+  flash: "🔥 Cyber League PRO iniciado. Quem faz a Cyber crescer, cresce junto.",
+  strategicProducts: [
+    { id: "notebook-cce", nome: "Notebook CCE", qtd: 1, bonus: 80, pontos: 40, vendidos: 0, ativo: true },
+    { id: "xbox-one", nome: "Xbox One", qtd: 2, bonus: 50, pontos: 30, vendidos: 0, ativo: true }
+  ],
+  pointRules:[
+    {id:"story",label:"Story",points:2,effect:"marketing"},
+    {id:"reel",label:"Reel",points:8,effect:"marketing"},
+    {id:"tiktok",label:"TikTok",points:8,effect:"marketing"},
+    {id:"live",label:"Live",points:20,effect:"marketing"},
+    {id:"marketplace",label:"Marketplace",points:3,effect:"marketing"},
+    {id:"status",label:"Status WhatsApp",points:2,effect:"marketing"},
+    {id:"check_entrada",label:"Checklist entrada",points:5,effect:"checklist"},
+    {id:"check_saida",label:"Checklist saída",points:5,effect:"checklist"},
+    {id:"vitrine",label:"Vitrine",points:5,effect:"checklist"},
+    {id:"balcao",label:"Balcão",points:5,effect:"checklist"},
+    {id:"produtos",label:"Produtos",points:5,effect:"checklist"},
+    {id:"os",label:"Serviço fechado / OS",points:15,effect:"os"},
+    {id:"orcamento",label:"Orçamento",points:5,effect:"orcamento"},
+    {id:"recuperacao",label:"Recuperação",points:10,effect:"recuperacao"},
+    {id:"lead",label:"Lead / indicação",points:12,effect:"lead"},
+    {id:"falta",label:"Falta",points:-30,effect:"falta"},
+    {id:"atraso",label:"Atraso",points:-10,effect:"points"},
+    {id:"erro_processo",label:"Erro de processo",points:-5,effect:"points"},
+    {id:"os_incompleta",label:"OS/cadastro errado",points:-5,effect:"points"},
+    {id:"atendimento_ruim",label:"Atendimento fora do padrão",points:-5,effect:"points"}
+  ],
   actions: [],
   launchHistory: []
 };
 
-const appRef = doc(db, "cyberLeagueProConfiguravel", "main");
+const appRef = doc(db, "cyberLeaguePro", "main");
 
 async function init() {
   const snap = await getDoc(appRef);
   if (!snap.exists()) {
     await setDoc(appRef, state);
-    await addDoc(collection(db, "cyberLeagueProConfiguravelActions"), { texto: "Cyber League PRO iniciado", icon: "🚀", createdAt: serverTimestamp() });
+    await addDoc(collection(db, "cyberLeagueProActions"), { texto: "Cyber League PRO iniciado", icon: "🚀", createdAt: serverTimestamp() });
   }
   onSnapshot(appRef, (s) => {
     if (s.exists()) {
@@ -537,7 +563,7 @@ async function init() {
       render();
     }
   });
-  const q = query(collection(db, "cyberLeagueProConfiguravelActions"), orderBy("createdAt", "desc"), limit(12));
+  const q = query(collection(db, "cyberLeagueProActions"), orderBy("createdAt", "desc"), limit(12));
   onSnapshot(q, (snapshot) => {
     state.actions = snapshot.docs.map(d => d.data());
     renderActions();
@@ -545,10 +571,10 @@ async function init() {
 }
 
 function normalize(){
-  state.config = { meta:0, ticketMeta:0, osMeta:0, marketingMeta:0, bonusMax:0, lucroMinimo:0, commissionBelow:0, commissionAbove:0, fixedPerSale:0, adminPin:"2026", tvPin:"1234", ...(state.config||{}) };
-  state.saleRules = Array.isArray(state.saleRules) ? state.saleRules : [];
-  state.strategicProducts = Array.isArray(state.strategicProducts) ? state.strategicProducts : [];
-  state.pointRules = Array.isArray(state.pointRules) ? state.pointRules : [];
+  state.config = { meta:200000, ticketMeta:650, osMeta:120, marketingMeta:300, bonusMax:2300, lucroMinimo:0, commissionBelow:0.5, commissionAbove:1, fixedPerSale:0, adminPin:"2026", tvPin:"1234", ...(state.config||{}) };
+  state.saleRules = Array.isArray(state.saleRules)&&state.saleRules.length ? state.saleRules : [{min:0,max:499.99,points:5},{min:500,max:999.99,points:8},{min:1000,max:2499.99,points:12},{min:2500,max:4999.99,points:18},{min:5000,max:999999999,points:25}];
+  state.strategicProducts = state.strategicProducts || [];
+  state.pointRules = (state.pointRules && state.pointRules.length) ? state.pointRules : defaultPointRules();
   state.launchHistory = Array.isArray(state.launchHistory) ? state.launchHistory : [];
   state.sellers = (state.sellers||[]).map(v => ({
     id:v.id, nome:v.nome, foto:v.foto||"", pts:v.pts||0, vendas:v.vendas||0, os:v.os||0, orcamentos:v.orcamentos||0, leads:v.leads||0, marketing:v.marketing||0,
@@ -584,9 +610,21 @@ function commission(v){ const fixed=Number(v.fixedPerSale ?? state.config.fixedP
 function totalCommission(){ return state.sellers.reduce((a,v)=>a+commission(v),0); }
 function salePoints(valor){ const r=(state.saleRules||[]).find(x=>valor>=Number(x.min||0)&&valor<=Number(x.max??999999999)); return r?Number(r.points)||0:0; }
 function bonusParts(v) {
-  return { individual:Number(v.strategicBonus)||0, presenca:0, metaLoja:0, ticket:0, mediaSemana:0, assist:0 };
+  const ciclos = Math.floor((v.pts||0)/250);
+  const resto = (v.pts||0) % 250;
+  let parcial = 0;
+  if(resto>=220) parcial = 250;
+  else if(resto>=170) parcial = 200;
+  else if(resto>=120) parcial = 150;
+  const individual = Math.min(1000, ciclos*250 + parcial);
+  const presenca = v.falta ? 0 : 100;
+  const metaLoja = totalFat() >= state.config.meta ? 400 : 0;
+  const ticket = 0; // bônus de ticket médio é coletivo da loja, liberado apenas no fechamento
+  const mediaSemana = v.vendas >= 20000 ? 100 : 0;
+  const assist = totalOS() >= state.config.osMeta ? 300 : 0;
+  return { individual, presenca, metaLoja, ticket, mediaSemana, assist };
 }
-function bonus(v) { return Number(v.strategicBonus)||0; }
+function bonus(v) { const p=bonusParts(v); return p.individual+p.presenca+p.metaLoja+p.ticket+p.mediaSemana+p.assist+(Number(v.strategicBonus)||0); }
 function sortedSellers() { return [...state.sellers].sort((a,b)=> (b.pts||0)-(a.pts||0)); }
 function toast(t) { const el=document.getElementById("toast"); el.textContent=t; el.classList.add("on"); setTimeout(()=>el.classList.remove("on"),2500); }
 
@@ -632,7 +670,6 @@ function normalizeRules(){
     label: r.label || "Ação",
     category: r.category || "Extra",
     points: Number(r.points)||0,
-    bonus: Number(r.bonus)||0,
     effect: r.effect || "points",
     active: r.active !== false,
     show: r.show !== false
@@ -672,7 +709,7 @@ function updateRulesInGestor(){
 }
 
 function render() {
-  const fat=totalFat(), os=totalOS(), tk=ticketLoja(), pct=state.config.meta>0?Math.min(100, Math.round((fat/state.config.meta)*100)):0;
+  const fat=totalFat(), os=totalOS(), tk=ticketLoja(), pct=Math.min(100, Math.round((fat/state.config.meta)*100));
   document.getElementById("kFat").textContent=fmt(fat);
   document.getElementById("kMeta").textContent=fmt(state.config.meta);
   document.getElementById("kTicket").textContent=fmt(tk);
@@ -727,7 +764,7 @@ function render() {
   updateRulesInGestor(); renderAssistencia(); renderMarketing(); renderEstrategicos(); renderBonus(); renderRules(); renderConfig(); applyViewerMode(); renderHistory();
 }
 function renderAssistencia(){
-  const os=totalOS(), pct=state.config.osMeta>0?Math.round(os/state.config.osMeta*100):0;
+  const os=totalOS(), pct=Math.round(os/state.config.osMeta*100);
   document.getElementById("aOS").textContent=os;
   document.getElementById("aMetaOS").textContent=state.config.osMeta;
   document.getElementById("aFat").textContent=fmt(totalAssistFat());
@@ -738,7 +775,7 @@ function renderAssistencia(){
     <tr><td><b>${v.nome}</b></td><td>${v.os||0}</td><td>${v.orcamentos||0}</td><td>${v.leads||0}</td><td>${fmt(v.assistFat||0)}</td><td>${progressBadge((v.os||0)/Math.max(1,state.config.osMeta/state.sellers.length)*100)}</td></tr>`).join("");
 }
 function renderMarketing(){
-  const total=totalMarketing(), pct=state.config.marketingMeta>0?Math.round(total/state.config.marketingMeta*100):0;
+  const total=totalMarketing(), pct=Math.round(total/state.config.marketingMeta*100);
   document.getElementById("mTotal").textContent=total;
   document.getElementById("mMeta").textContent=state.config.marketingMeta;
   document.getElementById("mRec").textContent=totalRec();
@@ -786,7 +823,6 @@ function renderRules(){
       <td><input class="ruleInput" id="rule_label_${r.id}" value="${r.label}"></td>
       <td><input class="ruleInput" id="rule_category_${r.id}" value="${r.category}"></td>
       <td><input class="ruleInput" id="rule_points_${r.id}" type="number" value="${r.points}"></td>
-      <td><input class="ruleInput" id="rule_bonus_${r.id}" type="number" step="0.01" value="${Number(r.bonus)||0}"></td>
       <td>
         <select class="ruleInput" id="rule_effect_${r.id}">
           ${["points","marketing","checklist","lead","recuperacao","orcamento","os","falta"].map(e=>`<option value="${e}" ${r.effect===e?"selected":""}>${e}</option>`).join("")}
@@ -874,7 +910,7 @@ async function saveState(newFlash) {
   await setDoc(appRef, { config: state.config, sellers: state.sellers, strategicProducts: state.strategicProducts||[], pointRules:state.pointRules||[], saleRules:state.saleRules||[], launchHistory: state.launchHistory||[], flash: state.flash }, { merge:true });
 }
 async function registerAction(icon,texto) {
-  await addDoc(collection(db, "cyberLeagueProConfiguravelActions"), { icon, texto, createdAt: serverTimestamp() });
+  await addDoc(collection(db, "cyberLeagueProActions"), { icon, texto, createdAt: serverTimestamp() });
 }
 window.lancar = async function() {
   if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
@@ -890,7 +926,9 @@ window.lancar = async function() {
 
   if(tipo==="venda"){
     pts=salePoints(valor);
-
+    if(valor>=650) pts+=10;
+    let extraAcess=0; if(acessorios>=5) extraAcess=10; else if(acessorios>=3) extraAcess=5;
+    pts+=extraAcess;
     v.vendas=(Number(v.vendas)||0)+valor;
     v.ticketSum=(Number(v.ticketSum)||0)+valor;
     v.ticketCount=(Number(v.ticketCount)||0)+1;
@@ -898,13 +936,11 @@ window.lancar = async function() {
     v.acessorios=(Number(v.acessorios)||0)+acessorios;
     undo.vendas=valor; undo.ticketSum=valor; undo.ticketCount=1; undo.saleCount=1; undo.acessorios=acessorios;
     icon="💰";
-    texto=`${v.nome} lançou venda de ${fmt(valor)}${acessorios?` • ${acessorios} acessórios`:""}${desc?" — "+desc:""}`;
+    texto=`${v.nome} lançou venda de ${fmt(valor)}${valor>=650?" • ticket +10 pts":""}${acessorios?` • ${acessorios} acessórios`:""}${desc?" — "+desc:""}`;
   } else {
     const rule=getRule(tipo);
     if(!rule || rule.active===false) return toast("Regra inativa ou não encontrada.");
     pts=Number(rule.points)||0;
-    const ruleBonus=Number(rule.bonus)||0;
-    if(ruleBonus){ v.strategicBonus=(Number(v.strategicBonus)||0)+ruleBonus; undo.strategicBonus=ruleBonus; }
     const effect=rule.effect || "points";
     if(effect==="marketing"){v.marketing=(Number(v.marketing)||0)+1; v[tipo]=(Number(v[tipo])||0)+1; undo.marketing=1; undo.counterKey=tipo; icon="📱";}
     else if(effect==="checklist"){v.checklist=(Number(v.checklist)||0)+1; v[tipo]=(Number(v[tipo])||0)+1; undo.checklist=1; undo.counterKey=tipo; icon="✅";}
@@ -914,7 +950,7 @@ window.lancar = async function() {
     else if(effect==="os"){v.os=(Number(v.os)||0)+1; v.vendas=(Number(v.vendas)||0)+valor; v.assistFat=(Number(v.assistFat)||0)+valor; undo.os=1; undo.vendas=valor; undo.assistFat=valor; icon="🔧";}
     else if(effect==="falta"){v.falta=true; undo.faltaSet=true; icon="⚠️";}
     else {icon=pts<0?"⚠️":"⚡";}
-    texto=`${v.nome} • ${rule.label} (${pts} pts${ruleBonus?` • ${fmt(ruleBonus)} bônus`:""})${valor?" • "+fmt(valor):""}${desc?" — "+desc:""}`;
+    texto=`${v.nome} • ${rule.label} (${pts} pts)${valor?" • "+fmt(valor):""}${desc?" — "+desc:""}`;
   }
 
   v.pts=Math.max(0,(Number(v.pts)||0)+pts);
@@ -971,24 +1007,22 @@ window.sellStrategicProduct = async function() {
 
 window.resetPointRules = async function(){
   if(!confirm("Restaurar a pontuação padrão?")) return;
-  state.pointRules=[];
-  await saveState("⚙️ Todas as regras foram apagadas.");
-  toast("Regras apagadas!");
+  state.pointRules=defaultPointRules();
+  await saveState("⚙️ Pontuação padrão restaurada.");
+  toast("Pontuação padrão restaurada!");
 }
 
 window.addRule = async function(){
   if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
   const label=document.getElementById("ruleLabel").value.trim();
   const points=Number(document.getElementById("rulePoints").value)||0;
-  const bonus=Number(document.getElementById("ruleBonus").value)||0;
   const category=document.getElementById("ruleCategory").value || "Extra";
   const effect=document.getElementById("ruleEffect").value || "points";
   if(!label) return toast("Digite o nome da ação.");
   normalizeRules();
-  state.pointRules.push({id:slug(label)+"-"+Date.now(), label, category, points, bonus, effect, active:true, show:true});
+  state.pointRules.push({id:slug(label)+"-"+Date.now(), label, category, points, effect, active:true, show:true});
   document.getElementById("ruleLabel").value="";
   document.getElementById("rulePoints").value="";
-  document.getElementById("ruleBonus").value="";
   await saveState("⚙️ Nova regra criada: "+label);
   updateRulesInGestor();
   renderRules();
@@ -1002,7 +1036,6 @@ window.saveRule = async function(id){
   r.label=document.getElementById("rule_label_"+id).value.trim() || r.label;
   r.category=document.getElementById("rule_category_"+id).value.trim() || "Extra";
   r.points=Number(document.getElementById("rule_points_"+id).value)||0;
-  r.bonus=Number(document.getElementById("rule_bonus_"+id).value)||0;
   r.effect=document.getElementById("rule_effect_"+id).value || "points";
   r.active=document.getElementById("rule_active_"+id).checked;
   r.show=document.getElementById("rule_show_"+id).checked;
@@ -1022,29 +1055,24 @@ window.deleteRule = async function(id){
 }
 window.resetPointRules = async function(){
   if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
-  if(!confirm("Apagar todas as regras cadastradas?")) return;
-  state.pointRules=[];
-  await saveState("⚙️ Todas as regras foram apagadas.");
+  if(!confirm("Restaurar as regras padrão?")) return;
+  state.pointRules=defaultPointRules();
+  await saveState("⚙️ Regras padrão restauradas.");
   updateRulesInGestor();
   renderRules();
-  toast("Regras apagadas!");
+  toast("Regras padrão restauradas!");
 }
 
-window.addSaleRule=async function(){
-  state.saleRules=Array.isArray(state.saleRules)?state.saleRules:[];
-  state.saleRules.push({min:0,max:999999999,points:0});
-  renderConfig();
-}
 window.saveSaleRules=async function(){
   state.saleRules=(state.saleRules||[]).map((r,i)=>({min:Number(document.getElementById("srMin_"+i).value)||0,max:document.getElementById("srMax_"+i).value===""?999999999:Number(document.getElementById("srMax_"+i).value),points:Number(document.getElementById("srPts_"+i).value)||0})).sort((a,b)=>a.min-b.min);
   await saveState("💰 Pontos por faixa de venda atualizados."); toast("Pontos das vendas salvos!");
 }
 window.salvarConfig = async function() {
-  state.config.meta=Number(document.getElementById("cfgMeta").value)||0;
-  state.config.ticketMeta=Number(document.getElementById("cfgTicket").value)||0;
-  state.config.osMeta=Number(document.getElementById("cfgOS").value)||0;
-  state.config.marketingMeta=Number(document.getElementById("cfgMarketing").value)||0;
-  state.config.bonusMax=Number(document.getElementById("cfgBonus").value)||0;
+  state.config.meta=Number(document.getElementById("cfgMeta").value)||200000;
+  state.config.ticketMeta=Number(document.getElementById("cfgTicket").value)||650;
+  state.config.osMeta=Number(document.getElementById("cfgOS").value)||120;
+  state.config.marketingMeta=Number(document.getElementById("cfgMarketing").value)||300;
+  state.config.bonusMax=Number(document.getElementById("cfgBonus").value)||2300;
   state.config.lucroMinimo=Number(document.getElementById("cfgLucro").value)||0;
   state.config.commissionBelow=Number(document.getElementById("cfgComissaoAbaixo").value)||0;
   state.config.commissionAbove=Number(document.getElementById("cfgComissaoAcima").value)||0;
@@ -1108,6 +1136,7 @@ window.recalcularPontuacao = async function(){
   toast("Pontuação recalculada!");
 }
 window.removeSeller = async function(id) {
+  if(state.sellers.length<=1) return toast("Precisa ter pelo menos uma vendedora.");
   state.sellers=state.sellers.filter(s=>s.id!==id);
   await saveState("⚙️ Lista de vendedoras atualizada.");
 }
