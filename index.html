@@ -473,7 +473,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <button class="btn-main full" onclick="salvarConfig()">Salvar configurações e acessos</button>
           </div>
         </div>
-        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. As alterações passam a valer nos próximos lançamentos.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
+        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. O primeiro valor é o corte: vendas até ele não pontuam. Ao salvar, você pode recalcular também as vendas antigas.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
         <div class="panel"><h2>🔗 Link das vendedoras</h2><button class="btn-main" onclick="copySellerLink()">Copiar link das vendedoras</button><p class="small" style="margin-top:8px">Esse link abre direto no login da TV. A equipe verá somente a tela da TV, sem acesso ao restante do aplicativo.</p></div>
         <div class="panel"><h2>🧹 Zerar mês</h2>
           <p class="small">Use apenas no início de um novo mês, depois de salvar os resultados.</p><br>
@@ -609,34 +609,22 @@ function sellerGoal(v){ return Number(v.individualGoal)||Math.round((Number(stat
 function commissionRate(v){ const hit=(Number(v.vendas)||0)>=sellerGoal(v); return Number(hit ? (v.commissionAbove ?? state.config.commissionAbove) : (v.commissionBelow ?? state.config.commissionBelow))||0; }
 function commission(v){ const fixed=Number(v.fixedPerSale ?? state.config.fixedPerSale)||0; return ((Number(v.vendas)||0)*commissionRate(v)/100)+((Number(v.saleCount)||0)*fixed); }
 function totalCommission(){ return state.sellers.reduce((a,v)=>a+commission(v),0); }
-function salePoints(valor){ const r=(state.saleRules||[]).find(x=>valor>=Number(x.min||0)&&valor<=Number(x.max??999999999)); return r?Number(r.points)||0:0; }
-function inicioSemana(ms) {
-  const d = new Date(ms);
-  d.setHours(0,0,0,0);
-  const dia = d.getDay();
-  const ajuste = dia === 0 ? -6 : 1 - dia; // segunda-feira
-  d.setDate(d.getDate() + ajuste);
-  return d.getTime();
-}
-function bonusIndividualSemanal(v) {
-  const semanas = {};
-  (state.launchHistory||[]).forEach(h=>{
-    if(h.deleted || h.sellerId !== v.id) return;
-    const pts = Number(h.undo?.pts)||0;
-    if(!pts) return;
-    const chave = inicioSemana(Number(h.createdMs)||Date.now());
-    semanas[chave] = (semanas[chave]||0) + pts;
-  });
-  let total = 0;
-  Object.values(semanas).forEach(pts=>{
-    if(pts>=220) total += 250;
-    else if(pts>=170) total += 200;
-    else if(pts>=120) total += 150;
-  });
-  return Math.min(1000,total);
+function salePoints(valor){
+  const rules=[...(state.saleRules||[])].sort((a,b)=>Number(a.min||0)-Number(b.min||0));
+  if(!rules.length) return 0;
+  // O primeiro "De R$" funciona como corte: vendas até esse valor não pontuam.
+  if(valor<=Number(rules[0].min||0)) return 0;
+  const r=rules.find((x,i)=>valor>(i===0?Number(x.min||0):Number(x.min||0)-0.000001)&&valor<=Number(x.max??999999999));
+  return r?Number(r.points)||0:0;
 }
 function bonusParts(v) {
-  const individual = bonusIndividualSemanal(v);
+  const ciclos = Math.floor((v.pts||0)/250);
+  const resto = (v.pts||0) % 250;
+  let parcial = 0;
+  if(resto>=220) parcial = 250;
+  else if(resto>=170) parcial = 200;
+  else if(resto>=120) parcial = 150;
+  const individual = Math.min(1000, ciclos*250 + parcial);
   const presenca = v.falta ? 0 : 100;
   const metaLoja = totalFat() >= state.config.meta ? 400 : 0;
   const ticket = 0; // bônus de ticket médio é coletivo da loja, liberado apenas no fechamento
@@ -829,8 +817,8 @@ function renderEstrategicos(){
 }
 
 function renderBonus(){
-  document.getElementById("bonusTable").innerHTML=sortedSellers().map(v=>{ const p=bonusParts(v); const estrategico=Number(v.strategicBonus)||0; return `
-    <tr><td><b>${v.nome}</b></td><td>${fmt(p.individual)}</td><td>${fmt(p.presenca)}</td><td>${fmt(p.metaLoja)}</td><td>${fmt(p.ticket)}</td><td>${fmt(p.mediaSemana)}</td><td>${fmt(p.assist)}</td><td>${fmt(estrategico)}</td><td class="ok">${fmt(bonus(v))}</td></tr>`}).join("");
+  document.getElementById("bonusTable").innerHTML=sortedSellers().map(v=>{ const p=bonusParts(v); return `
+    <tr><td><b>${v.nome}</b></td><td>${fmt(p.individual)}</td><td>${fmt(p.presenca)}</td><td>${fmt(p.metaLoja)}</td><td>${fmt(p.ticket)}</td><td>${fmt(p.mediaSemana)}</td><td>${fmt(p.assist)}</td><td class="ok">${fmt(bonus(v))}</td></tr>`}).join("");
 }
 
 
@@ -1104,7 +1092,30 @@ window.resetPointRules = async function(){
 
 window.saveSaleRules=async function(){
   state.saleRules=(state.saleRules||[]).map((r,i)=>({min:Number(document.getElementById("srMin_"+i).value)||0,max:document.getElementById("srMax_"+i).value===""?999999999:Number(document.getElementById("srMax_"+i).value),points:Number(document.getElementById("srPts_"+i).value)||0})).sort((a,b)=>a.min-b.min);
-  await saveState("💰 Pontos por faixa de venda atualizados."); toast("Pontos das vendas salvos!");
+  const retro=confirm("Aplicar essas faixas também em TODAS as vendas já lançadas e recalcular os pontos?\n\nVendas até o primeiro valor informado não valerão pontos, mas continuarão somando na meta.");
+  if(retro){
+    for(const h of (state.launchHistory||[])){
+      if(h.deleted || h.tipo!=="venda") continue;
+      const u=h.undo||{};
+      const valor=Number(u.vendas)||0;
+      const acessorios=Number(u.acessorios)||0;
+      let novosPts=salePoints(valor);
+      if(valor>=Number(state.config.ticketMeta||650)) novosPts+=10;
+      if(acessorios>=5) novosPts+=10; else if(acessorios>=3) novosPts+=5;
+      h.pts=novosPts; u.pts=novosPts; h.undo=u;
+    }
+    const base={pts:0,vendas:0,os:0,orcamentos:0,leads:0,marketing:0,recuperacoes:0,checklist:0,ticketSum:0,ticketCount:0,saleCount:0,assistFat:0,strategicBonus:0,strategicSales:0,acessorios:0,falta:false};
+    state.sellers=state.sellers.map(v=>({...v,...base}));
+    for(const h of [...(state.launchHistory||[])].filter(h=>!h.deleted).sort((a,b)=>(a.createdMs||0)-(b.createdMs||0))){
+      const u=h.undo||{},v=state.sellers.find(s=>s.id===u.sellerId); if(!v) continue;
+      v.pts=Math.max(0,(Number(v.pts)||0)+(Number(u.pts)||0));
+      for(const k of ["vendas","ticketSum","ticketCount","saleCount","os","assistFat","orcamentos","marketing","checklist","recuperacoes","leads","strategicBonus","strategicSales","acessorios"]) if(u[k]) v[k]=(Number(v[k])||0)+Number(u[k]);
+      if(u.counterKey) v[u.counterKey]=(Number(v[u.counterKey])||0)+(Number(u.counterQty)||1);
+      if(u.faltaSet) v.falta=true;
+    }
+  }
+  await saveState("💰 Pontos por faixa de venda atualizados"+(retro?" e vendas antigas recalculadas.":"."));
+  toast(retro?"Faixas salvas e vendas antigas recalculadas!":"Pontos das vendas salvos!");
 }
 window.salvarConfig = async function() {
   state.config.meta=Number(document.getElementById("cfgMeta").value)||200000;
