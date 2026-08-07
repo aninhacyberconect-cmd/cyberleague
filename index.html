@@ -179,6 +179,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <input id="valor" type="number" placeholder="Valor R$ quando tiver">
             <input id="acessorios" type="number" placeholder="Qtd. acessórios (venda)">
             <input id="quantidade" type="number" min="1" step="1" value="1" placeholder="Quantidade da regra (ex.: 3 dias)">
+            <input id="pontosManual" type="number" step="0.1" placeholder="Pontos deste lançamento (opcional)">
             <input id="desc" type="text" placeholder="Descrição: iPhone, tela, story...">
             <button class="btn-main full" onclick="lancar()">Lançar e atualizar TV</button>
           </div>
@@ -936,6 +937,10 @@ window.lancar = async function() {
   const valor = Number(document.getElementById("valor")?.value) || 0;
   const acessorios = Number(document.getElementById("acessorios")?.value) || 0;
   const quantidadeInformada = Math.max(1, Math.floor(Number(document.getElementById("quantidade")?.value) || 1));
+  const pontosManualEl = document.getElementById("pontosManual");
+  const pontosManualPreenchido = pontosManualEl && pontosManualEl.value.trim() !== "";
+  const pontosManual = pontosManualPreenchido ? Number(pontosManualEl.value) : null;
+  if(pontosManualPreenchido && !Number.isFinite(pontosManual)) return toast("Digite uma quantidade válida de pontos.");
   const desc = document.getElementById("desc")?.value.trim() || "";
   const v = state.sellers.find(s => s.id === sellerId);
   if (!v) return toast("Selecione uma vendedora.");
@@ -974,14 +979,21 @@ window.lancar = async function() {
     texto=`${v.nome} • ${rule.label}${detalheQtd}${valor?" • "+fmt(valor):""}${desc?" — "+desc:""}`;
   }
 
+  if(pontosManualPreenchido){
+    const pontosAutomaticos=pts;
+    pts=pontosManual;
+    texto+=` • pontos ajustados manualmente: ${pts} pts${pontosAutomaticos!==pts?` (automático seria ${pontosAutomaticos})`:""}`;
+  }
+
   v.pts=Math.max(0,(Number(v.pts)||0)+pts);
   undo.pts=pts;
-  state.launchHistory=[{id:"h"+Date.now()+Math.random().toString(16).slice(2),sellerId,sellerNome:v.nome,tipo,icon,texto,pts,undo,createdMs:Date.now(),createdLabel:nowBR(),deleted:false},...(state.launchHistory||[])].slice(0,500);
+  state.launchHistory=[{id:"h"+Date.now()+Math.random().toString(16).slice(2),sellerId,sellerNome:v.nome,tipo,icon,texto,pts,undo,manualPoints:pontosManualPreenchido,createdMs:Date.now(),createdLabel:nowBR(),deleted:false},...(state.launchHistory||[])].slice(0,500);
   await saveState(`${icon} ${texto}`);
   if(typeof registerAction==="function") await registerAction(icon,texto,undo);
   document.getElementById("valor").value="";
   if(document.getElementById("acessorios")) document.getElementById("acessorios").value="";
   if(document.getElementById("quantidade")) document.getElementById("quantidade").value="1";
+  if(document.getElementById("pontosManual")) document.getElementById("pontosManual").value="";
   document.getElementById("desc").value="";
   toast("Lançado e sincronizado!");
 }
@@ -1103,7 +1115,7 @@ window.saveSaleRules=async function(){
   const retro=confirm("Aplicar essas faixas também em TODAS as vendas já lançadas e recalcular os pontos?\n\nVendas até o primeiro valor informado não valerão pontos, mas continuarão somando na meta.");
   if(retro){
     for(const h of (state.launchHistory||[])){
-      if(h.deleted || h.tipo!=="venda") continue;
+      if(h.deleted || h.tipo!=="venda" || h.manualPoints===true) continue;
       const u=h.undo||{};
       const valor=Number(u.vendas)||0;
       const acessorios=Number(u.acessorios)||0;
