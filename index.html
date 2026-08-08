@@ -476,7 +476,7 @@ body.tvMode main{max-width:none;margin:0;padding:0}
             <button class="btn-main full" onclick="salvarConfig()">Salvar configurações e acessos</button>
           </div>
         </div>
-        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. O primeiro valor é o corte: vendas até ele não pontuam. Ao salvar, você pode recalcular também as vendas antigas.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button></div>
+        <div class="panel"><h2>💰 Pontos por faixa de venda</h2><p class="small">Altere quantos pontos cada venda gera conforme o valor. O primeiro valor é o corte: vendas até ele não pontuam. Ao salvar, você pode recalcular também as vendas antigas.</p><br><div id="saleRulesEditor"></div><button class="btn-main" style="margin-top:10px" onclick="saveSaleRules()">Salvar pontos das vendas</button><button class="btn-dark" style="margin-top:8px" onclick="recalcularVendasSemExtra650()">Recalcular vendas antigas sem +10 de R$650</button></div>
         <div class="panel"><h2>🔗 Link das vendedoras</h2><button class="btn-main" onclick="copySellerLink()">Copiar link das vendedoras</button><p class="small" style="margin-top:8px">Esse link abre direto no login da TV. A equipe verá somente a tela da TV, sem acesso ao restante do aplicativo.</p></div>
         <div class="panel"><h2>🧹 Zerar mês</h2>
           <p class="small">Use apenas no início de um novo mês, depois de salvar os resultados.</p><br>
@@ -949,7 +949,6 @@ window.lancar = async function() {
 
   if(tipo==="venda"){
     pts=salePoints(valor);
-    if(valor>=650) pts+=10;
     let extraAcess=0; if(acessorios>=5) extraAcess=10; else if(acessorios>=3) extraAcess=5;
     pts+=extraAcess;
     v.vendas=(Number(v.vendas)||0)+valor;
@@ -1108,6 +1107,38 @@ window.resetPointRules = async function(){
   updateRulesInGestor();
   renderRules();
   toast("Regras padrão restauradas!");
+}
+
+window.recalcularVendasSemExtra650 = async function(){
+  if(isViewerMode && isViewerMode()) return toast("Modo visualização.");
+  const vendas=(state.launchHistory||[]).filter(h=>!h.deleted && h.tipo==="venda");
+  if(!vendas.length) return toast("Não há vendas para recalcular.");
+  if(!confirm(`Recalcular ${vendas.length} vendas antigas usando somente a faixa de venda + acessórios, removendo o antigo +10 por venda acima de R$650? Pontos manuais serão preservados.`)) return;
+
+  let alteradas=0, manuais=0;
+  for(const h of vendas){
+    if(h.manualPoints===true){ manuais++; continue; }
+    const u=h.undo||{};
+    const valor=Number(u.vendas ?? h.saleValue)||0;
+    const acessorios=Number(u.acessorios ?? h.saleAccessories)||0;
+
+    let novosPontos=salePoints(valor);
+    if(acessorios>=5) novosPontos+=10;
+    else if(acessorios>=3) novosPontos+=5;
+
+    h.pts=novosPontos;
+    u.pts=novosPontos;
+    h.undo=u;
+    h.saleBasePoints=salePoints(valor);
+    h.saleValue=valor;
+    h.saleAccessories=acessorios;
+    alteradas++;
+  }
+
+  await recalcularPontuacaoSemConfirmar();
+  await saveState(`🧮 ${alteradas} vendas recalculadas sem o antigo +10 de R$650.${manuais?` ${manuais} lançamentos manuais preservados.`:""}`);
+  renderAll();
+  toast(`${alteradas} vendas recalculadas!${manuais?` ${manuais} manuais preservadas.`:""}`);
 }
 
 window.saveSaleRules=async function(){
