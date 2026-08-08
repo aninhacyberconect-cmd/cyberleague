@@ -1151,7 +1151,6 @@ window.saveSaleRules=async function(){
       const valor=Number(u.vendas)||0;
       const acessorios=Number(u.acessorios)||0;
       let novosPts=salePoints(valor);
-      if(valor>=Number(state.config.ticketMeta||650)) novosPts+=10;
       if(acessorios>=5) novosPts+=10; else if(acessorios>=3) novosPts+=5;
       h.pts=novosPts; u.pts=novosPts; h.undo=u;
     }
@@ -1248,8 +1247,7 @@ window.deleteLaunch = async function(id){
   await registerAction("🗑️",`Lançamento apagado: ${h.texto}`);
   toast("Lançamento apagado!");
 }
-window.recalcularPontuacao = async function(){
-  if(!confirm("Recalcular usando o histórico ativo? Isso zera as métricas do mês e refaz pelos lançamentos.")) return;
+async function recalcularPontuacaoSemConfirmar(){
   const base={ pts:0, vendas:0, os:0, orcamentos:0, leads:0, marketing:0, recuperacoes:0, checklist:0, ticketSum:0, ticketCount:0, saleCount:0, assistFat:0, strategicBonus:0, strategicSales:0, falta:false };
   state.sellers=state.sellers.map(v=>({...v,...base}));
   state.strategicProducts=(state.strategicProducts||[]).map(p=>({...p, vendidos:0, ativo:true}));
@@ -1265,6 +1263,11 @@ window.recalcularPontuacao = async function(){
     if(u.productId){ const p=(state.strategicProducts||[]).find(x=>x.id===u.productId); if(p){ p.vendidos=(Number(p.vendidos)||0)+1; if(p.vendidos>=p.qtd) p.ativo=false; } }
   }
   await saveState("🔄 Pontuação recalculada pelo histórico.");
+}
+
+window.recalcularPontuacao = async function(){
+  if(!confirm("Recalcular usando o histórico ativo? Isso zera as métricas do mês e refaz pelos lançamentos.")) return;
+  await recalcularPontuacaoSemConfirmar();
   toast("Pontuação recalculada!");
 }
 window.removeSeller = async function(id) {
